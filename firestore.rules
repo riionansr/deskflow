@@ -1,0 +1,17 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Allow the server-side API proxy to manage accounts and phrases
+    match /portal_data/accounts {
+      allow read, write: if true;
+    }
+    match /portal_data/phrases {
+      allow read, write: if true;
+    }
+  }
+}

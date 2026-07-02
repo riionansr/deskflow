@@ -1,0 +1,38 @@
+{
+  "entities": {
+    "UserAccounts": {
+      "title": "UserAccounts",
+      "description": "List of all registered technician accounts and credentials",
+      "type": "object",
+      "properties": {
+        "accounts": {
+          "type": "array",
+          "description": "Array of technician profile objects containing logins and signatures"
+        }
+      },
+      "required": ["accounts"]
+    },
+    "GlobalPhrases": {
+      "title": "GlobalPhrases",
+      "description": "Standard phrases shown in the portal when first accessing",
+      "type": "object",
+      "properties": {
+        "phrases": {
+          "type": "array",
+          "description": "Array of standardized template response objects"
+        }
+      },
+      "required": ["phrases"]
+    }
+  },
+  "firestore": {
+    "/portal_data/accounts": {
+      "schema": "UserAccounts",
+      "description": "Stores all registered accounts"
+    },
+    "/portal_data/phrases": {
+      "schema": "GlobalPhrases",
+      "description": "Stores static global default phrases"
+    }
+  }
+}
