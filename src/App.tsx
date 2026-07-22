@@ -578,13 +578,13 @@ export default function App() {
             {/* Logo/Brand Title */}
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-slate-950 font-display font-black text-sm shadow-md shadow-sky-500/20 shrink-0">
-                S!
+                DF
               </div>
               <div className="min-w-0">
                 <h1 className="text-sm sm:text-base font-display font-bold text-slate-100 leading-none tracking-tight flex items-center gap-1.5">
                   DeskFlow
                   <span className="bg-sky-500/15 text-sky-350 border border-sky-400/20 text-[9px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full hidden sm:inline-block">
-                    SABESP IT
+                    Community
                   </span>
                 </h1>
               </div>
@@ -674,7 +674,7 @@ export default function App() {
                     rel="noopener noreferrer"
                     className="hidden lg:flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 font-medium hover:bg-white/5 py-1.5 px-2.5 rounded-xl transition border border-transparent hover:border-white/5"
                   >
-                    <span>ServiceNow SABESP</span>
+                    <span>Portal ServiceNow</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
 

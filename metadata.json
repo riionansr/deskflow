@@ -1,6 +1,6 @@
 {
-  "name": "DeskFlow",
-  "description": "IT Support helper portal to quickly search, view, and copy pre-formatted phraseology responses for ServiceNow tickets.",
+  "name": "DeskFlow Community",
+  "description": "Open-source IT Support helper portal to quickly search, view, import, export, and copy pre-formatted phraseology responses.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
