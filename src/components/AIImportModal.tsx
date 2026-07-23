@@ -59,8 +59,31 @@ function mapCategory(input: string): string {
   return "Outros";
 }
 
-// Highly robust offline parsing routine for DeskFlow exported text files
+// Highly robust offline parsing routine for DeskFlow exported text files, JSON arrays, and Markdown
 function parseDirectText(text: string): any[] {
+  const trimmedText = text.trim();
+
+  // Try JSON parsing first
+  if (trimmedText.startsWith('[') || trimmedText.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmedText);
+      const arr = Array.isArray(parsed) ? parsed : (parsed.phrases || [parsed]);
+      if (Array.isArray(arr) && arr.length > 0) {
+        const jsonResults = arr.map(item => ({
+          title: item.title || item.nome || 'Sem título',
+          subtitle: item.subtitle || item.subtitulo || undefined,
+          category: mapCategory(item.category || item.categoria || 'Outros'),
+          content: item.content || item.texto || item.frase || '',
+          tags: Array.isArray(item.tags) ? item.tags : []
+        })).filter(p => p.content.trim().length > 0);
+
+        if (jsonResults.length > 0) return jsonResults;
+      }
+    } catch {
+      // Proceed to delimiter/text parsing
+    }
+  }
+
   const blocks = text.split(/--------------------------------------------------+/);
   const result: any[] = [];
   
@@ -212,11 +235,11 @@ export default function AIImportModal({ isOpen, onClose, onImportComplete }: AII
         return;
       }
       const ext = selectedFile.name.substring(selectedFile.name.lastIndexOf(".")).toLowerCase();
-      if (ext === ".txt" || ext === ".docx") {
+      if (ext === ".txt" || ext === ".json" || ext === ".md" || ext === ".docx") {
         setFile(selectedFile);
         setErrorWord(null);
       } else {
-        setErrorWord("Tipo de arquivo inválido. Por favor, envie apenas arquivos .txt ou .docx");
+        setErrorWord("Tipo de arquivo inválido. Por favor, envie arquivos .txt, .json, .md ou .docx");
       }
     }
   };

@@ -11,6 +11,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import { exportWithAI } from "../lib/api";
+import { generateExportContent } from "../lib/exportFormatter";
 import { Phrase } from "../types";
 
 interface AIExportModalProps {
@@ -54,8 +55,13 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
     }, 2000);
 
     try {
-      // call api
-      const content = await exportWithAI(phrases, exportMode);
+      let content = "";
+      try {
+        content = await exportWithAI(phrases, exportMode);
+      } catch (serverErr) {
+        // Fallback to client-side formatted export for pure BYOD Vercel mode
+        content = generateExportContent(phrases, exportMode === "ai_optimized" ? "formatted" : "plain");
+      }
       clearInterval(stepInterval);
 
       // Trigger download

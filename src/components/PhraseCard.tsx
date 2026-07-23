@@ -9,11 +9,11 @@ interface PhraseCardProps {
   onDelete?: (id: string) => void;
   onTogglePin?: (id: string) => void;
   isAdmin: boolean;
-  searchQuery: string;
-  onTagClick: (tag: string) => void;
+  searchQuery?: string;
+  onTagClick?: (tag: string) => void;
 }
 
-export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAdmin, searchQuery, onTagClick }: PhraseCardProps) {
+export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAdmin, searchQuery = '', onTagClick }: PhraseCardProps) {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
