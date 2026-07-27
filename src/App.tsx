@@ -8,7 +8,8 @@ import {
   Database,
   Hash,
   Download,
-  HardDrive
+  HardDrive,
+  Layers
 } from 'lucide-react';
 import { Phrase, CategoryType, CATEGORIES } from './types';
 import PhraseCard from './components/PhraseCard';
@@ -19,7 +20,8 @@ import BYODSettingsModal from './components/BYODSettingsModal';
 import { 
   loadLocalPhrases, 
   saveLocalPhrases, 
-  loadGitHubConfig 
+  loadGitHubConfig,
+  loadCategories
 } from './lib/storage';
 import { pushPhrasesToGitHub } from './lib/githubSync';
 import { savePhrases } from './lib/api';
@@ -27,8 +29,9 @@ import { savePhrases } from './lib/api';
 export default function App() {
   // Global State
   const [phrases, setPhrases] = useState<Phrase[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType>('Todos');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   
   // Modals
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -36,6 +39,7 @@ export default function App() {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isBYODSettingsOpen, setIsBYODSettingsOpen] = useState(false);
   const [editingPhrase, setEditingPhrase] = useState<Phrase | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'storage' | 'categories' | 'signature' | 'github' | 'gemini'>('storage');
   
   // Status effects
   const [showNotification, setShowNotification] = useState<string | null>(null);
@@ -44,6 +48,7 @@ export default function App() {
   useEffect(() => {
     const loaded = loadLocalPhrases();
     setPhrases(loaded);
+    setCategories(loadCategories());
   }, []);
 
   const notify = (msg: string) => {
@@ -205,17 +210,17 @@ export default function App() {
           <div className="flex justify-between items-center h-14 gap-4">
             
             {/* Logo/Brand Title */}
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-slate-950 font-display font-black text-sm shadow-md shadow-sky-500/20 shrink-0">
-                DF
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 shrink-0">
+                <Layers className="w-4.5 h-4.5" />
               </div>
-              <div className="min-w-0">
-                <h1 className="text-sm sm:text-base font-display font-bold text-slate-100 leading-none tracking-tight flex items-center gap-1.5">
-                  DeskFlow
-                  <span className="bg-sky-500/15 text-sky-350 border border-sky-400/20 text-[9px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full hidden sm:inline-block">
-                    Community BYOD
-                  </span>
+              <div className="min-w-0 flex items-center gap-2">
+                <h1 className="font-extrabold tracking-wider text-slate-100 font-display uppercase text-sm sm:text-base leading-none">
+                  DESKFLOW
                 </h1>
+                <span className="bg-sky-500/15 text-sky-350 border border-sky-400/20 text-[9px] uppercase tracking-wider font-semibold py-0.5 px-2 rounded-full hidden sm:inline-block">
+                  Community BYOD
+                </span>
               </div>
             </div>
 
@@ -263,7 +268,7 @@ export default function App() {
       </header>
 
       {/* Main Single Column Workspace Layout */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 flex-grow w-full">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-16 sm:pb-20 flex-grow w-full">
         <div className="space-y-6">
 
           {/* Banner BYOD Info */}
@@ -337,8 +342,8 @@ export default function App() {
             {/* Horizontal Category Selectors Slider */}
             <div className="pt-2 border-t border-white/5">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {CATEGORIES.map((cat) => {
-                  const count = getCategoryCount(cat);
+                {['Todos', ...categories].map((cat) => {
+                  const count = getCategoryCount(cat as any);
                   const isSelected = selectedCategory === cat;
                   return (
                     <button
@@ -415,24 +420,45 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto pt-10 pb-6 border-t border-white/5 text-center text-xs text-slate-500">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-400 font-display">DeskFlow Community</span>
-            <span>&bull;</span>
-            <span>Portal BYOD Sem Backend</span>
+      <footer className="mt-auto py-5 border-t border-white/10 bg-slate-950/80 text-xs text-slate-400 font-sans">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          
+          {/* Left Brand Info */}
+          <div className="flex items-center gap-2.5">
+            <div className="p-1 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <Layers className="w-4 h-4" />
+            </div>
+            <span className="font-extrabold tracking-wider text-slate-100 font-display uppercase text-sm">
+              DESKFLOW
+            </span>
+            <span className="text-indigo-400 font-bold">•</span>
+            <span className="font-mono text-[11px] tracking-widest text-indigo-400 uppercase font-bold">
+              A RAR PROJECT
+            </span>
           </div>
-          <div className="flex items-center gap-4 text-slate-400">
-            <a
-              href="https://sabesp.service-now.com/esc"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-200 transition inline-flex items-center gap-1"
-            >
-              <span>ServiceNow Portal</span>
-              <ExternalLink className="w-3 h-3" />
-            </a>
+
+          {/* Right Status Pill & Credits */}
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-3 sm:gap-5">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700/60 text-[11px] font-mono text-slate-300 shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>
+                VERSÃO ATUAL: <strong className="text-sky-300 font-bold">v1.0.0</strong>
+              </span>
+            </div>
+
+            <div className="text-slate-400 font-sans text-xs">
+              Designed &amp; developed by{' '}
+              <a
+                href="https://github.com/riionansr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white visited:text-white hover:text-indigo-400 focus:text-indigo-400 font-bold no-underline transition-colors duration-300 ease-in-out cursor-pointer"
+              >
+                Renan Ramos
+              </a>
+            </div>
           </div>
+
         </div>
       </footer>
 
@@ -443,6 +469,10 @@ export default function App() {
         onSave={handleSavePhrase}
         phrase={editingPhrase}
         totalPhrasesCount={phrases.length}
+        categories={categories}
+        onOpenSettings={(tab) => {
+          setIsBYODSettingsOpen(true);
+        }}
       />
 
       <AIImportModal
@@ -461,7 +491,12 @@ export default function App() {
         isOpen={isBYODSettingsOpen}
         onClose={() => setIsBYODSettingsOpen(false)}
         phrases={phrases}
+        categories={categories}
         onPhrasesUpdated={(newPhrases, msg) => persistAndSync(newPhrases, msg)}
+        onCategoriesUpdated={(newCategories, msg) => {
+          setCategories(newCategories);
+          if (msg) notify(msg);
+        }}
       />
 
     </div>

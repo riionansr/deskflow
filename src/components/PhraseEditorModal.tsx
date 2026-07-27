@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Eye, Edit2, Bold, Italic, Link, List, FileSignature, Trash2, RotateCcw, Plus, AlertCircle, FileText } from 'lucide-react';
-import { Phrase, CATEGORIES } from '../types';
+import { X, Save, Eye, Edit2, Bold, Italic, Link, List, FileSignature, Trash2, RotateCcw, Plus, AlertCircle, FileText, Settings, FolderPlus } from 'lucide-react';
+import { Phrase } from '../types';
+import { loadCustomSignature, loadCategories } from '../lib/storage';
 import MarkdownRenderer from './MarkdownRenderer';
 
 interface PhraseEditorModalProps {
@@ -14,9 +15,20 @@ interface PhraseEditorModalProps {
   ) => void;
   onDelete?: (id: string) => void;
   totalPhrasesCount: number;
+  categories: string[];
+  onOpenSettings?: (tab?: 'categories' | 'signature') => void;
 }
 
-export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onDelete, totalPhrasesCount }: PhraseEditorModalProps) {
+export default function PhraseEditorModal({
+  phrase,
+  isOpen,
+  onClose,
+  onSave,
+  onDelete,
+  totalPhrasesCount,
+  categories,
+  onOpenSettings
+}: PhraseEditorModalProps) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('N2 / N3');
   const [content, setContent] = useState('');
@@ -24,11 +36,12 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
   const [orderAction, setOrderAction] = useState<'keep' | 'first' | 'last' | 'position'>('keep');
   const [targetPosition, setTargetPosition] = useState<number>(1);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [error, setError] = useState('');
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const availableCategories = categories.filter(cat => cat !== 'Todos');
 
   useEffect(() => {
     if (phrase) {
@@ -40,7 +53,7 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
       setTargetPosition(phrase.orderIndex || 1);
     } else {
       setTitle('');
-      setCategory('N2 / N3');
+      setCategory(availableCategories[0] || 'N2 / N3');
       setContent('');
       setTagsInput('');
       setOrderAction('last');
@@ -49,7 +62,7 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
     setError('');
     setActiveTab('edit');
     setShowConfirmDelete(false);
-  }, [phrase, isOpen, totalPhrasesCount]);
+  }, [phrase, isOpen, totalPhrasesCount, categories]);
 
   if (!isOpen) return null;
 
@@ -124,10 +137,10 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
   const formatBold = () => insertMarkdown('**', '**');
   const formatItalic = () => insertMarkdown('*', '*');
   const formatList = () => insertMarkdown('\n* ', '');
-  const formatLink = () => insertMarkdown('[SABESP ServiceNow](', ')');
+  const formatLink = () => insertMarkdown('[Link Portal](', ')');
   
   const insertStandardFooter = () => {
-    const footerText = `\n\nAtenciosamente,\nServiço de Atendimento de Tecnologia da Informação\nCentral de Serviços SABESP\nTelefone: (11) 3388-9000\nWhatsApp: (11) 3388-9000\nSani (Chat MS Teams)\nPortal ServiceNow: https://sabesp.service-now.com/esc`;
+    const footerText = loadCustomSignature();
     const textarea = textareaRef.current;
     if (!textarea) {
       setContent(prev => prev + footerText);
@@ -203,15 +216,28 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-350 uppercase tracking-wilder mb-1.5 font-sans">
-                  Categoria de Atendimento
-                </label>
+                <div className="flex justify-between items-center mb-1.5 font-sans">
+                  <label className="block text-xs font-bold text-slate-350 uppercase tracking-wilder">
+                    Categoria de Atendimento
+                  </label>
+                  {onOpenSettings && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenSettings('categories')}
+                      className="text-[10px] text-sky-400 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
+                      title="Criar ou excluir categorias"
+                    >
+                      <FolderPlus className="w-3 h-3" />
+                      <span>Gerenciar</span>
+                    </button>
+                  )}
+                </div>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl glass-input text-white text-sm font-sans focus:outline-hidden font-medium bg-slate-900 cursor-pointer"
                 >
-                  {CATEGORIES.filter(cat => cat !== 'Todos').map(cat => (
+                  {availableCategories.map(cat => (
                     <option key={cat} value={cat} className="bg-slate-950 text-white">{cat}</option>
                   ))}
                 </select>
@@ -284,15 +310,27 @@ export default function PhraseEditorModal({ phrase, isOpen, onClose, onSave, onD
                     >
                       <Link className="w-4 h-4 text-sky-400" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={insertStandardFooter}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] bg-sky-500/10 text-sky-400 hover:bg-sky-500/20 rounded-md transition font-semibold font-sans select-none border border-sky-500/20 cursor-pointer"
-                      title="Anexar rodapé padrão Sabesp com canais, telefone, chatbot e ServiceNow link."
-                    >
-                      <FileSignature className="w-3.5 h-3.5 shrink-0" />
-                      Assinatura SABESP
-                    </button>
+                    <div className="flex items-center gap-0.5 bg-sky-500/10 rounded-md border border-sky-500/20 p-0.5">
+                      <button
+                        type="button"
+                        onClick={insertStandardFooter}
+                        className="flex items-center gap-1 px-2 py-1 text-[11px] text-sky-400 hover:bg-sky-500/20 rounded transition font-semibold font-sans select-none cursor-pointer"
+                        title="Anexar sua assinatura configurada"
+                      >
+                        <FileSignature className="w-3.5 h-3.5 shrink-0" />
+                        Anexar Assinatura
+                      </button>
+                      {onOpenSettings && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenSettings('signature')}
+                          className="p-1 text-sky-400 hover:bg-sky-500/20 rounded transition cursor-pointer"
+                          title="Configurar texto da assinatura"
+                        >
+                          <Settings className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

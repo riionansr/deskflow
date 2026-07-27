@@ -4,6 +4,88 @@ import { initialPhrases } from '../data/defaultPhrases';
 const PHRASES_STORAGE_KEY = 'deskflow_phrases_v1';
 const GITHUB_CONFIG_KEY = 'deskflow_github_config_v1';
 const GEMINI_KEY = 'deskflow_gemini_api_key_v1';
+const CATEGORIES_STORAGE_KEY = 'deskflow_categories_v1';
+const SIGNATURE_STORAGE_KEY = 'deskflow_signature_v1';
+
+export const DEFAULT_CATEGORIES = [
+  'N2 / N3',
+  'VPN',
+  'Senha & Reset',
+  'Acessos & Redes',
+  'Impressoras',
+  'Software',
+  'Terceiros',
+  'Tentativas & Pendente',
+  'Outros'
+];
+
+export const DEFAULT_SIGNATURE = `\n\nAtenciosamente,\nServiço de Atendimento de Tecnologia da Informação\nCentral de Atendimento e Suporte de TI\nPortal de Atendimento e Chamados`;
+
+/**
+ * Load categories list from LocalStorage.
+ */
+export function loadCategories(): string[] {
+  try {
+    const raw = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        if (!parsed.includes('Outros')) {
+          parsed.push('Outros');
+        }
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load categories:', err);
+  }
+  return [...DEFAULT_CATEGORIES];
+}
+
+/**
+ * Save categories list to LocalStorage.
+ */
+export function saveCategories(categories: string[]): boolean {
+  try {
+    const clean = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
+    if (!clean.includes('Outros')) {
+      clean.push('Outros');
+    }
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(clean));
+    return true;
+  } catch (err) {
+    console.error('Failed to save categories:', err);
+    return false;
+  }
+}
+
+/**
+ * Load custom signature text from LocalStorage.
+ */
+export function loadCustomSignature(): string {
+  try {
+    const raw = localStorage.getItem(SIGNATURE_STORAGE_KEY);
+    if (raw !== null) {
+      return raw;
+    }
+  } catch (err) {
+    console.warn('Failed to load signature:', err);
+  }
+  return DEFAULT_SIGNATURE;
+}
+
+/**
+ * Save custom signature text to LocalStorage.
+ */
+export function saveCustomSignature(sig: string): boolean {
+  try {
+    localStorage.setItem(SIGNATURE_STORAGE_KEY, sig);
+    return true;
+  } catch (err) {
+    console.error('Failed to save signature:', err);
+    return false;
+  }
+}
 
 export interface GitHubConfig {
   token: string;

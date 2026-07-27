@@ -2,7 +2,7 @@
  * Cryptographic utility functions for client-side password safety
  */
 
-const SALT = 'SABESP_PORTAL_FRASEOLOGIA_2026_SECURITY_SALT';
+const SALT = 'DESKFLOW_PORTAL_FRASEOLOGIA_2026_SECURITY_SALT';
 
 /**
  * Generates a SHA-256 salted hash of a given password using browser native Web Crypto API.

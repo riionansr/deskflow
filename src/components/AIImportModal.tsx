@@ -11,10 +11,14 @@ import {
   Trash2, 
   Info,
   ChevronRight,
-  Layers
+  Layers,
+  Copy,
+  Check,
+  HelpCircle
 } from "lucide-react";
 import { importWithAI } from "../lib/api";
 import { Phrase, CategoryType } from "../types";
+import { parseStandardText, STANDARD_FORMAT_EXAMPLE } from "../lib/textFormat";
 
 interface AIImportModalProps {
   isOpen: boolean;
@@ -28,12 +32,12 @@ const AI_LOADING_STEPS = [
   "Analisando padrões linguísticos de suporte corporativo...",
   "Separando as fraseologias e limpando ruídos estruturais...",
   "Gerando títulos curtos e objetivos em português...",
-  "Atribuindo as melhores categorias Sabesp de forma inteligente...",
+  "Atribuindo as melhores categorias de forma inteligente...",
   "Ajustando tags e placeholders internos como [Nome] ou [Senha]...",
   "Finalizando empacotamento e gerando catálogo..."
 ];
 
-// Helper to normalize and map parsed/hashtag values to certified SABESP categories
+// Helper to normalize and map parsed/hashtag values to categories
 function mapCategory(input: string): string {
   const norm = input.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
   
@@ -46,20 +50,10 @@ function mapCategory(input: string): string {
   if (norm.includes("terceiro") || norm.includes("outsourcing") || norm.includes("externo")) return "Terceiros";
   if (norm.includes("tentativa") || norm.includes("pendente") || norm.includes("follow") || norm.includes("aguarda")) return "Tentativas & Pendente";
   
-  // Direct matches
-  if (input === "N2 / N3") return "N2 / N3";
-  if (input === "VPN") return "VPN";
-  if (input === "Senha & Reset") return "Senha & Reset";
-  if (input === "Acessos & Redes") return "Acessos & Redes";
-  if (input === "Impressoras") return "Impressoras";
-  if (input === "Software") return "Software";
-  if (input === "Terceiros") return "Terceiros";
-  if (input === "Tentativas & Pendente") return "Tentativas & Pendente";
-  
-  return "Outros";
+  return input.trim() || "Outros";
 }
 
-// Highly robust offline parsing routine for DeskFlow exported text files, JSON arrays, and Markdown
+// Highly robust offline parsing routine for DeskFlow exported text files, JSON arrays, and Standard Format
 function parseDirectText(text: string): any[] {
   const trimmedText = text.trim();
 
@@ -80,110 +74,23 @@ function parseDirectText(text: string): any[] {
         if (jsonResults.length > 0) return jsonResults;
       }
     } catch {
-      // Proceed to delimiter/text parsing
+      // Proceed to standard text parsing
     }
   }
 
-  const blocks = text.split(/--------------------------------------------------+/);
-  const result: any[] = [];
-  
-  blocks.forEach(block => {
-    const trimmed = block.trim();
-    if (!trimmed) return;
-    
-    const lines = trimmed.split('\n');
-    let title = '';
-    let subtitle = '';
-    let category = 'Outros';
-    let tags: string[] = [];
-    const contentLines: string[] = [];
-    
-    let titleSet = false;
-    let subtitleSet = false;
-    let categorySet = false;
-    let tagsSet = false;
-    
-    lines.forEach((line, index) => {
-      const lineTrim = line.trim();
-      if (!lineTrim) return;
-      
-      // Match explicit "=== TÍTULO: text ===" or "=== TITULO: text ==="
-      const titleMatch = lineTrim.match(/^===\s*(?:TÍTULO|TITULO):\s*(.*?)\s*===/i);
-      if (titleMatch) {
-        title = titleMatch[1].trim();
-        titleSet = true;
-        return;
-      }
-      
-      // Explicit Subtitle
-      if (lineTrim.toLowerCase().startsWith('subtítulo:') || lineTrim.toLowerCase().startsWith('subtitulo:')) {
-        subtitle = lineTrim.substring(lineTrim.indexOf(':') + 1).trim();
-        subtitleSet = true;
-        return;
-      }
-      
-      // Explicit Category
-      if (lineTrim.toLowerCase().startsWith('categoria:') || lineTrim.toLowerCase().startsWith('category:')) {
-        const catVal = lineTrim.substring(lineTrim.indexOf(':') + 1).trim();
-        category = mapCategory(catVal);
-        categorySet = true;
-        return;
-      }
-      
-      // Explicit Tags
-      if (lineTrim.toLowerCase().startsWith('tags:')) {
-        const tagsVal = lineTrim.substring(lineTrim.indexOf(':') + 1).trim();
-        tags = tagsVal.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
-        tagsSet = true;
-        return;
-      }
-      
-      // If it looks like a footer hashtag line (e.g., #VPN #Acessos #Senha)
-      const isHashtagLine = lineTrim.startsWith('#') && !lineTrim.includes(':') && 
-                            (lineTrim.includes(' #') || lineTrim.split(/\s+/).every(w => w.startsWith('#')));
-      if (isHashtagLine) {
-        const hashes = lineTrim.split(/\s+/).map(h => h.trim().replace(/^#/, '')).filter(Boolean);
-        if (hashes.length > 0) {
-          if (!categorySet) {
-            category = mapCategory(hashes[0]);
-            categorySet = true;
-            tags = [...tags, ...hashes.slice(1)];
-          } else {
-            tags = [...tags, ...hashes];
-          }
-          tagsSet = true;
-          return;
-        }
-      }
-      
-      // If none matched and we haven't set the title yet, treat the static first line as Title
-      if (index === 0 || (!titleSet && contentLines.length === 0)) {
-        title = lineTrim.replace(/^===|===$/g, '').trim();
-        titleSet = true;
-        return;
-      }
-      
-      // Gather body content
-      contentLines.push(line);
-    });
-    
-    if (!title) {
-      title = 'Sem Título';
-    }
-    
-    const content = contentLines.join('\n').trim();
-    if (!content) return;
-    
-    result.push({
-      title,
-      subtitle: subtitle || undefined,
-      category,
-      content,
-      tags: Array.from(new Set(tags))
-    });
-  });
-  
-  return result;
+  // Use parseStandardText
+  const standardResults = parseStandardText(text);
+  if (standardResults && standardResults.length > 0) {
+    return standardResults.map(p => ({
+      title: p.title || 'Sem título',
+      subtitle: p.subtitle,
+      category: p.category || 'Outros',
+      content: p.content || '',
+      tags: p.tags || []
+    }));
+  }
+
+  return [];
 }
 
 export default function AIImportModal({ isOpen, onClose, onImportComplete }: AIImportModalProps) {
@@ -527,11 +434,41 @@ export default function AIImportModal({ isOpen, onClose, onImportComplete }: AII
               </div>
 
               {importMethod === "direct" ? (
-                <div className="flex items-start gap-3 p-3 bg-sky-500/5 rounded-xl border border-sky-500/10 text-xs text-slate-350 font-sans animate-fade-in">
-                  <Info className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" />
-                  <p className="leading-relaxed">
-                    <strong>Importação ultrarrápida local:</strong> Ideal para carregar backups ou arquivos de equipe contendo as categorias e tags em formato de marcadores ou hashtag (gerados pelo nosso assistente de exportação). Não consome limites de IA.
-                  </p>
+                <div className="space-y-3 animate-fade-in">
+                  <div className="flex items-start gap-3 p-3.5 bg-sky-500/10 rounded-xl border border-sky-500/20 text-xs text-slate-300 font-sans">
+                    <Info className="w-5 h-5 text-sky-400 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-sky-300">Formato Padrão de Importação Directa:</p>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        Use a estrutura <code className="text-sky-300 font-mono">titulo:</code>, <code className="text-sky-300 font-mono">corpo:</code>, <code className="text-sky-300 font-mono">assinatura:</code> (opcional) e hashtags no final. 
+                        <strong> A primeira hashtag (ex: <code className="text-emerald-300 font-mono">#N2</code>) define a categoria do item</strong>, e todas as hashtags viram tags!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950 p-3.5 rounded-xl border border-white/10 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                        <HelpCircle className="w-3.5 h-3.5 text-sky-400" />
+                        Exemplo do Formato Aceito
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(STANDARD_FORMAT_EXAMPLE);
+                          setPastedText(STANDARD_FORMAT_EXAMPLE);
+                          setActiveTab("paste");
+                        }}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1 cursor-pointer bg-sky-500/10 px-2 py-1 rounded-md border border-sky-500/20"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copiar e Usar Exemplo</span>
+                      </button>
+                    </div>
+                    <pre className="text-[10px] text-slate-350 font-mono bg-slate-900/80 p-2.5 rounded-lg overflow-x-auto leading-relaxed border border-white/5">
+                      {STANDARD_FORMAT_EXAMPLE}
+                    </pre>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-start gap-3 p-3 bg-indigo-500/5 rounded-xl border border-indigo-500/10 text-xs text-slate-350 font-sans animate-fade-in">
@@ -621,10 +558,10 @@ export default function AIImportModal({ isOpen, onClose, onImportComplete }: AII
                     placeholder="Cole aqui seu conteúdo de suporte... 
 
 Exemplo:
-Oi obrigado pelo contato. Para resetar a senha, acesse o link sabesp.com.br/senha e use a chave padrão...
+Oi, obrigado pelo contato. Para resetar a senha, acesse o portal de segurança e siga as instruções...
 
-VPN Sabesp:
-Para conectar na vpn Sabesp use o software Cisco AnyConnect..."
+VPN Corporativa:
+Para conectar na VPN, utilize o cliente configurado e informe seu usuário..."
                     className="w-full min-h-[180px] p-4 rounded-xl bg-slate-950/65 border border-white/10 text-white text-xs font-sans placeholder:text-slate-600 focus:outline-hidden leading-relaxed resize-y select-text"
                     id="clipboard-textarea"
                   />
