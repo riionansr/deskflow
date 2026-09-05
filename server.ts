@@ -6,30 +6,10 @@ import { createServer as createViteServer } from "vite";
 import { ZipArchive } from "archiver";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
-import { GoogleGenAI, Type } from "@google/genai";
 import mammoth from "mammoth";
 
 let firebaseDb: any = null;
-let aiClient: GoogleGenAI | null = null;
 let memoryDB = { accounts: [], phrases: [] };
-
-function getGeminiClient(): GoogleGenAI {
-  if (!aiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("A chave de API do Gemini (GEMINI_API_KEY) está ausente. Configure-a no menu Settings > Secrets para usar a importação por Inteligência Artificial.");
-    }
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        }
-      }
-    });
-  }
-  return aiClient;
-}
 
 try {
   const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
@@ -99,6 +79,12 @@ async function startServer() {
 
   app.use(express.json({ limit: "50mb" }));
 
+  // Static assets from public folder (favicons, icons, web manifest)
+  app.use(express.static(path.join(process.cwd(), "public")));
+  app.get("/favicon.ico", (req, res) => {
+    res.sendFile(path.join(process.cwd(), "public/favicon.ico"));
+  });
+
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -143,6 +129,7 @@ async function startServer() {
     }
   });
 
+  // Offline Document/Text Parser (No external AI dependency)
   app.post("/api/ai-import", async (req, res) => {
     const { fileBase64, fileName } = req.body;
     if (!fileBase64 || !fileName) {
@@ -153,8 +140,8 @@ async function startServer() {
       let textContent = "";
       const buffer = Buffer.from(fileBase64, "base64");
 
-      if (buffer.length > 2 * 1024 * 1024) {
-        return res.status(400).json({ error: "O arquivo excede o limite de tamanho de segurança de 2MB." });
+      if (buffer.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ error: "O arquivo excede o limite de tamanho de segurança de 5MB." });
       }
 
       if (fileName.toLowerCase().endsWith(".docx")) {
@@ -168,109 +155,112 @@ async function startServer() {
         return res.status(400).json({ error: "O arquivo importado está vazio ou não possui texto legível." });
       }
 
-      const ai = getGeminiClient();
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: [
-          `Analise os modelos de texto ou respostas padrão de suporte de TI importados do arquivo (${fileName}).
-          
-          Suas tarefas obrigatórias:
-          1. Identifique cada resposta rápida, fraseologia ou modelo contido no texto.
-          2. Formate e embeleze os textos. Preserve as quebras de linha essenciais e mantenha campos variáveis em colchetes como '[Nome]' ou '[Senha]'.
-          3. Se o texto já contiver títulos explícitos (ex: 'Título: ...'), preserve-os fielmente. Caso contrário, crie um 'title' representativo em Português.
-          4. Crie um 'subtitle' (Subtítulo) de no máximo 10 palavras explicando o contexto de uso do modelo.
-          5. Se o texto contiver a categoria explícita (ex: 'Categoria: ...'), mantenha essa categoria. Se não contiver, atribua a categoria temática mais adequada para suporte de TI (ex: 'N2 / N3', 'VPN', 'Senha & Reset', 'Acessos & Redes', 'Impressoras', 'Software', 'Terceiros', 'Tentativas & Pendente' ou 'Outros').
-          6. Gere ou extraia as tags associadas ao chamado/procedimento.
-          
-          Texto extraído do arquivo para processar:
-          ${textContent}`
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING, description: "Short descriptive title" },
-                subtitle: { type: Type.STRING, description: "Brief context explanation" },
-                content: { type: Type.STRING, description: "The beautiful formatted text body with placeholders" },
-                category: { 
-                  type: Type.STRING, 
-                  description: "Category name in Portuguese (matching the explicit category from the document, or standard IT category: 'N2 / N3', 'VPN', 'Senha & Reset', 'Acessos & Redes', 'Impressoras', 'Software', 'Terceiros', 'Tentativas & Pendente', 'Outros')" 
-                },
-                tags: { 
-                  type: Type.ARRAY, 
-                  items: { type: Type.STRING },
-                  description: "2 to 3 tags" 
-                }
-              },
-              required: ["title", "content", "category", "tags"]
-            }
+      // Check if JSON
+      const trimmed = textContent.trim();
+      if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          const list = Array.isArray(parsed) ? parsed : (parsed.phrases || [parsed]);
+          if (Array.isArray(list) && list.length > 0) {
+            const phrases = list.map((item: any) => ({
+              title: item.title || item.nome || "Sem título",
+              subtitle: item.subtitle || item.subtitulo || undefined,
+              category: item.category || item.categoria || "Geral",
+              content: item.content || item.texto || item.frase || "",
+              tags: Array.isArray(item.tags) ? item.tags : []
+            })).filter((p: any) => p.content.trim().length > 0);
+            return res.json({ phrases });
+          }
+        } catch {
+          // fallback to text splitting
+        }
+      }
+
+      // Parse standard text blocks separated by dashed lines
+      const blocks = textContent.split(/\r?\n\s*[-=_]{3,}\s*\r?\n/);
+      const phrases: any[] = [];
+
+      for (const block of blocks) {
+        const lines = block.trim().split(/\r?\n/);
+        if (lines.length === 0 || !lines[0].trim()) continue;
+
+        let title = "";
+        let category = "Geral";
+        let subtitle: string | undefined = undefined;
+        const tags: string[] = [];
+        const contentLines: string[] = [];
+
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (/^===?\s*T[ÍI]TULO:\s*/i.test(trimmedLine)) {
+            title = trimmedLine.replace(/^===?\s*T[ÍI]TULO:\s*/i, "").replace(/\s*===?$/, "").trim();
+          } else if (/^CATEGORIA:\s*/i.test(trimmedLine)) {
+            category = trimmedLine.replace(/^CATEGORIA:\s*/i, "").trim();
+          } else if (/^SUBT[ÍI]TULO:\s*/i.test(trimmedLine)) {
+            subtitle = trimmedLine.replace(/^SUBT[ÍI]TULO:\s*/i, "").trim();
+          } else if (trimmedLine.startsWith("#")) {
+            const foundHashtags = trimmedLine.match(/#[a-zA-Z0-9_\u00C0-\u00FF-]+/g) || [];
+            foundHashtags.forEach(tag => {
+              const clean = tag.replace(/^#/, "").trim();
+              if (clean && !tags.includes(clean)) tags.push(clean);
+            });
+          } else {
+            contentLines.push(line);
           }
         }
-      });
 
-      const text = response.text || "[]";
-      let phrases = JSON.parse(text);
-
-      if (!Array.isArray(phrases)) {
-        phrases = [];
+        const body = contentLines.join("\n").trim();
+        if (body || title) {
+          phrases.push({
+            title: title || (body ? body.split("\n")[0].substring(0, 40) : "Sem título"),
+            subtitle,
+            category: category || "Geral",
+            content: body,
+            tags
+          });
+        }
       }
 
       res.json({ phrases });
     } catch (err: any) {
-      console.error("AI Import Error:", err);
-      res.status(500).json({ error: err.message || "Erro desconhecido no processamento de IA." });
+      console.error("Import Error:", err);
+      res.status(500).json({ error: err.message || "Erro no processamento do arquivo." });
     }
   });
 
+  // Offline export endpoint
   app.post("/api/ai-export", async (req, res) => {
-    const { phrases, mode } = req.body;
+    const { phrases } = req.body;
     if (!Array.isArray(phrases)) {
       return res.status(400).json({ error: "Por favor, forneça as fraseologias para exportar." });
     }
 
     try {
-      if (mode === "ai_optimized") {
-        const ai = getGeminiClient();
-        const response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: [
-            `Utilizando Inteligência Artificial (Gemini), consolide e embeleze esta lista de fraseologias de suporte de TI em um único arquivo de texto de formato limpo (.txt) exportado para compartilhamento.
-            
-            Para cada item da lista (representado por Título, Categoria, Tags e Corpo de Texto):
-            1. Formate de forma limpa e legível para um humano ler. Comece cada item com o título, depois inclua uma linha com a categoria descrita.
-            2. Mantenha marcadores de substituição em colchetes como '[Nome]'.
-            3. No final de CADA texto, crie exatamente UMA linha simples contendo as hashtags que ajudarão o importador a categorizar e taguear este texto no futuro (ex: #vpn #365 #senha #acessos). A primeira hashtag DEVE ser a categoria adaptada (com '#' e sem espaços/caracteres especiais, por exemplo: #SenhaReset, #VPN, #N2N3, #AcessosRedes, #Impressoras, #Software, #Terceiros, #TentativasPendente, #Outros) e depois hashtags adicionais.
-            4. Separe cada item claramente usando uma linha tracejada longa de "--------------------------------------------------".
+      let textOutput = "";
+      phrases.forEach((p: any) => {
+        const pTitle = p.title || "Sem título";
+        const pCategory = p.category || "Outros";
+        const pContent = p.content || "";
+        const pTags = Array.isArray(p.tags) ? p.tags : [];
 
-            Lista de fraseologias para exportar:
-            ${JSON.stringify(phrases, null, 2)}`
-          ]
-        });
-
-        const textOutput = response.text || "";
-        res.json({ content: textOutput });
-      } else {
-        let textOutput = "";
-        phrases.forEach((p: any) => {
-          textOutput += `=== TÍTULO: ${p.title} ===\n`;
-          if (p.subtitle) textOutput += `Subtítulo: ${p.subtitle}\n`;
-          textOutput += `Categoria: ${p.category}\n`;
-          textOutput += `Tags: ${(p.tags || []).join(", ")}\n\n`;
-          textOutput += `${p.content}\n`;
-          
-          const catHashtag = "#" + p.category.normalize("NFD").replace(/[^a-zA-Z0-9]/g, "");
-          const tagHashtags = (p.tags || []).map((t: string) => "#" + t.normalize("NFD").replace(/[^a-zA-Z0-9]/g, "")).join(" ");
-          textOutput += `\n${catHashtag} ${tagHashtags}\n`;
-          textOutput += `--------------------------------------------------\n\n`;
-        });
-        res.json({ content: textOutput });
-      }
+        textOutput += `=== TÍTULO: ${pTitle} ===\n`;
+        if (p.subtitle) textOutput += `Subtítulo: ${p.subtitle}\n`;
+        textOutput += `Categoria: ${pCategory}\n`;
+        textOutput += `Tags: ${pTags.join(", ")}\n\n`;
+        textOutput += `${pContent}\n`;
+        
+        const catHashtag = "#" + pCategory.normalize("NFD").replace(/[^a-zA-Z0-9]/g, "");
+        const tagHashtags = pTags
+          .filter((t: any) => typeof t === "string")
+          .map((t: string) => "#" + t.normalize("NFD").replace(/[^a-zA-Z0-9]/g, ""))
+          .join(" ");
+        textOutput += `\n${catHashtag} ${tagHashtags}\n`;
+        textOutput += `--------------------------------------------------\n\n`;
+      });
+      res.json({ content: textOutput });
     } catch (err: any) {
-      console.error("AI Export Error:", err);
-      res.status(500).json({ error: err.message || "Erro desconhecido ao exportar com IA." });
+      console.error("Export Error:", err);
+      res.status(500).json({ error: err.message || "Erro ao exportar fraseologias." });
     }
   });
 

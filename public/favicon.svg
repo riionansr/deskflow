@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e1b4b" />
+    </linearGradient>
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#6366f1" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#818cf8" stop-opacity="0.3" />
+    </linearGradient>
+    <linearGradient id="topLayerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+    <linearGradient id="midLayerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#6366f1" />
+    </linearGradient>
+    <linearGradient id="botLayerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#4338ca" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Background -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGrad)" />
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="none" stroke="url(#borderGrad)" stroke-width="12" />
+
+  <!-- Subtle glow beneath layers -->
+  <ellipse cx="256" cy="270" rx="140" ry="80" fill="#38bdf8" opacity="0.12" filter="url(#glow)" />
+
+  <!-- DeskFlow 3-Tier Layers -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- Bottom Layer (Layer 3) -->
+    <path 
+      d="M400 340 L256 405 L112 340" 
+      fill="none" 
+      stroke="url(#botLayerGrad)" 
+      stroke-width="32" 
+    />
+
+    <!-- Middle Layer (Layer 2) -->
+    <path 
+      d="M400 265 L256 330 L112 265" 
+      fill="none" 
+      stroke="url(#midLayerGrad)" 
+      stroke-width="32" 
+    />
+
+    <!-- Top Layer (Layer 1 - Rhombus/Isometric Surface) -->
+    <polygon 
+      points="256,125 400,190 256,255 112,190" 
+      fill="url(#topLayerGrad)" 
+      stroke="#e0f2fe" 
+      stroke-width="16" 
+      opacity="0.95"
+    />
+  </g>
+</svg>

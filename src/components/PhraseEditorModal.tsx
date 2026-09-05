@@ -45,10 +45,10 @@ export default function PhraseEditorModal({
 
   useEffect(() => {
     if (phrase) {
-      setTitle(phrase.title);
+      setTitle(phrase.title || '');
       setCategory(phrase.category || '');
-      setContent(phrase.content);
-      setTagsInput(phrase.tags.join(', '));
+      setContent(phrase.content || '');
+      setTagsInput(Array.isArray(phrase.tags) ? phrase.tags.join(', ') : '');
       setOrderAction('keep');
       setTargetPosition(phrase.orderIndex || 1);
     } else {

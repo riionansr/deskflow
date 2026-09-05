@@ -18,13 +18,18 @@ export function generateExportContent(phrases: Phrase[], mode: 'plain' | 'format
   const blocks = phrases.map((phrase) => {
     const lines: string[] = [];
 
-    lines.push(`titulo: ${phrase.title}`);
+    const title = phrase.title || 'Sem título';
+    const content = phrase.content || '';
+    const category = phrase.category || 'Outros';
+    const tags = Array.isArray(phrase.tags) ? phrase.tags : [];
+
+    lines.push(`titulo: ${title}`);
     lines.push('corpo:');
-    lines.push(phrase.content);
+    lines.push(content);
     
-    const catTag = phrase.category ? `#${phrase.category.replace(/\s+/g, '')}` : '#Outros';
-    const otherTags = (phrase.tags || [])
-      .filter(t => t.toLowerCase() !== (phrase.category || '').toLowerCase())
+    const catTag = `#${category.replace(/\s+/g, '')}`;
+    const otherTags = tags
+      .filter(t => typeof t === 'string' && t.toLowerCase() !== category.toLowerCase())
       .map(t => `#${t.replace(/\s+/g, '')}`);
     
     lines.push([catTag, ...otherTags].join(' '));

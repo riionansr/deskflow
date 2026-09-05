@@ -88,32 +88,40 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
     }
   };
 
-  const colors = getCategoryColor(phrase.category);
+  const colors = getCategoryColor(phrase.category || 'Outros');
 
   // Simple text match highlighting for title optimized for dark backgrounds
-  const renderHighlightedText = (text: string, query: string) => {
+  const renderHighlightedText = (text: string = '', query: string = '') => {
+    if (!text) return '';
     if (!query.trim()) return text;
-    const parts = text.split(new RegExp(`(${query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')})`, 'gi'));
-    return (
-      <span>
-        {parts.map((part, i) => 
-          part.toLowerCase() === query.toLowerCase() ? (
-            <mark key={i} className="bg-amber-500/30 text-amber-200 border border-amber-500/20 font-medium rounded-xs px-0.5">
-              {part}
-            </mark>
-          ) : (
-            part
-          )
-        )}
-      </span>
-    );
+    try {
+      const escaped = query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+      return (
+        <span>
+          {parts.map((part, i) => 
+            part.toLowerCase() === query.toLowerCase() ? (
+              <mark key={i} className="bg-amber-500/30 text-amber-200 border border-amber-500/20 font-medium rounded-xs px-0.5">
+                {part}
+              </mark>
+            ) : (
+              part
+            )
+          )}
+        </span>
+      );
+    } catch {
+      return text;
+    }
   };
 
-  const isLongContent = phrase.content.length > 250;
+  const safeContent = phrase.content || '';
+  const isLongContent = safeContent.length > 250;
   const shouldTruncate = isLongContent && !isExpanded;
   const displayContent = shouldTruncate 
-    ? phrase.content.substring(0, 240) + '...'
-    : phrase.content;
+    ? safeContent.substring(0, 240) + '...'
+    : safeContent;
+  const safeTags = Array.isArray(phrase.tags) ? phrase.tags : [];
 
   // Render a tiny visual preview of markdown formatting instead of complex rendering inside cards
   return (
@@ -136,7 +144,7 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
                 <span>FIXADO</span>
               </span>
             )}
-            {searchQuery && phrase.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())) && (
+            {searchQuery && safeTags.some(t => typeof t === 'string' && t.toLowerCase().includes(searchQuery.toLowerCase())) && (
               <span className="inline-flex items-center bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0.1 select-none rounded font-mono font-medium">
                 Atalho Ativo
               </span>
@@ -251,27 +259,31 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
       </div>
 
       {/* Footer Area: Tags */}
-      <div className="px-5 pb-4 pt-1 border-t border-white/5 flex flex-wrap gap-1.5 items-center mt-auto">
-        {phrase.tags.map((tag) => {
-          const isMatched = searchQuery && tag.toLowerCase().includes(searchQuery.toLowerCase());
-          return (
-            <button
-              key={tag}
-              onClick={(e) => {
-                e.stopPropagation();
-                onTagClick(tag);
-              }}
-              className={`text-[11px] font-mono select-none px-2 py-0.5 rounded-md transition cursor-pointer ${
-                isMatched
-                  ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30 font-semibold shadow-xs'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 border border-white/5'
-              }`}
-            >
-              #{tag}
-            </button>
-          );
-        })}
-      </div>
+      {safeTags.length > 0 && (
+        <div className="px-5 pb-4 pt-1 border-t border-white/5 flex flex-wrap gap-1.5 items-center mt-auto">
+          {safeTags.map((tag) => {
+            const isMatched = typeof tag === 'string' && searchQuery && tag.toLowerCase().includes(searchQuery.toLowerCase());
+            return (
+              <button
+                key={tag}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onTagClick) {
+                    onTagClick(tag);
+                  }
+                }}
+                className={`text-[11px] font-mono select-none px-2 py-0.5 rounded-md transition cursor-pointer ${
+                  isMatched
+                    ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30 font-semibold shadow-xs'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 border border-white/5'
+                }`}
+              >
+                #{tag}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

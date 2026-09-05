@@ -3,7 +3,6 @@ import { initialPhrases, LEGACY_DEFAULT_PHRASE_IDS } from '../data/defaultPhrase
 
 const PHRASES_STORAGE_KEY = 'deskflow_phrases_v1';
 const GITHUB_CONFIG_KEY = 'deskflow_github_config_v1';
-const GEMINI_KEY = 'deskflow_gemini_api_key_v1';
 const CATEGORIES_STORAGE_KEY = 'deskflow_categories_v1';
 const SIGNATURE_STORAGE_KEY = 'deskflow_signature_v1';
 const BYOD_MIGRATION_KEY = 'deskflow_byod_zerado_v1';
@@ -202,29 +201,6 @@ export function saveGitHubConfig(config: GitHubConfig): boolean {
     return true;
   } catch (err) {
     console.error('Failed to save GitHub config:', err);
-    return false;
-  }
-}
-
-/**
- * Load user BYO Gemini API Key
- */
-export function loadGeminiKey(): string {
-  try {
-    return localStorage.getItem(GEMINI_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Save user BYO Gemini API Key
- */
-export function saveGeminiKey(key: string): boolean {
-  try {
-    localStorage.setItem(GEMINI_KEY, key.trim());
-    return true;
-  } catch {
     return false;
   }
 }

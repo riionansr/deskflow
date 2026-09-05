@@ -96,6 +96,16 @@ export default function BYODSettingsModal({
 
   // Storage Stats
   const storageSizeKb = Math.round((JSON.stringify(phrases).length * 2) / 1024);
+  const [storageMsg, setStorageMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [confirmResetAll, setConfirmResetAll] = useState(false);
+
+  // Category Confirmation States
+  const [catMsg, setCatMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null);
+  const [confirmClearCats, setConfirmClearCats] = useState(false);
+
+  // Signature Confirmation States
+  const [confirmResetSig, setConfirmResetSig] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -105,6 +115,12 @@ export default function BYODSettingsModal({
       setGhMessage(null);
       setGdriveMsg(null);
       setSigSavedMsg(false);
+      setStorageMsg(null);
+      setCatMsg(null);
+      setConfirmDeleteCat(null);
+      setConfirmClearCats(false);
+      setConfirmResetSig(false);
+      setConfirmResetAll(false);
 
       const unsubscribe = initGoogleDriveAuth((user, token) => {
         setGoogleUser(user);
@@ -181,49 +197,46 @@ export default function BYODSettingsModal({
     if (!clean) return;
 
     if (catList.some(c => c.toLowerCase() === clean.toLowerCase())) {
-      alert('Esta categoria já existe!');
+      setCatMsg({ type: 'error', text: 'Esta categoria já existe!' });
       return;
     }
 
     const updated = [...catList, clean];
     setCatList(updated);
     saveCategories(updated);
+    setCatMsg({ type: 'success', text: `Categoria "${clean}" adicionada!` });
     onCategoriesUpdated(updated, `Categoria "${clean}" adicionada!`);
     setNewCatInput('');
   };
 
-  const handleDeleteCategory = (catToDelete: string) => {
+  const executeDeleteCategory = (catToDelete: string) => {
     const phrasesInCat = phrases.filter(p => p.category === catToDelete).length;
-    const confirmMsg = phrasesInCat > 0
-      ? `Existem ${phrasesInCat} fraseologia(s) associada(s) à categoria "${catToDelete}". Se você removê-la, a categoria será desvinculada dessas frases. Confirmar?`
-      : `Deseja remover a categoria "${catToDelete}"?`;
+    const updatedCategories = catList.filter(c => c !== catToDelete);
+    setCatList(updatedCategories);
+    saveCategories(updatedCategories);
+    setCatMsg({ type: 'success', text: `Categoria "${catToDelete}" removida.` });
+    onCategoriesUpdated(updatedCategories, `Categoria "${catToDelete}" removida.`);
 
-    if (confirm(confirmMsg)) {
-      const updatedCategories = catList.filter(c => c !== catToDelete);
-      setCatList(updatedCategories);
-      saveCategories(updatedCategories);
-      onCategoriesUpdated(updatedCategories, `Categoria "${catToDelete}" removida.`);
-
-      // Update phrases using this category to empty
-      if (phrasesInCat > 0) {
-        const updatedPhrases = phrases.map(p => {
-          if (p.category === catToDelete) {
-            return { ...p, category: '' };
-          }
-          return p;
-        });
-        onPhrasesUpdated(updatedPhrases);
-      }
+    // Update phrases using this category to empty
+    if (phrasesInCat > 0) {
+      const updatedPhrases = phrases.map(p => {
+        if (p.category === catToDelete) {
+          return { ...p, category: '' };
+        }
+        return p;
+      });
+      onPhrasesUpdated(updatedPhrases);
     }
+    setConfirmDeleteCat(null);
   };
 
-  const handleClearAllCategories = () => {
+  const executeClearAllCategories = () => {
     if (catList.length === 0) return;
-    if (confirm('Deseja zerar todas as categorias cadastradas? Elas serão removidas do filtro e do catálogo.')) {
-      clearAllLocalCategories();
-      setCatList([]);
-      onCategoriesUpdated([], 'Todas as categorias foram zeradas!');
-    }
+    clearAllLocalCategories();
+    setCatList([]);
+    setConfirmClearCats(false);
+    setCatMsg({ type: 'success', text: 'Todas as categorias foram zeradas!' });
+    onCategoriesUpdated([], 'Todas as categorias foram zeradas!');
   };
 
   // Signature Actions
@@ -233,13 +246,12 @@ export default function BYODSettingsModal({
     setTimeout(() => setSigSavedMsg(false), 3000);
   };
 
-  const handleResetSignature = () => {
-    if (confirm('Deseja zerar a assinatura?')) {
-      setSigText('');
-      saveCustomSignature('');
-      setSigSavedMsg(true);
-      setTimeout(() => setSigSavedMsg(false), 3000);
-    }
+  const executeResetSignature = () => {
+    setSigText('');
+    saveCustomSignature('');
+    setConfirmResetSig(false);
+    setSigSavedMsg(true);
+    setTimeout(() => setSigSavedMsg(false), 3000);
   };
 
   // GitHub Actions
@@ -286,12 +298,13 @@ export default function BYODSettingsModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setStorageMsg(null);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (!Array.isArray(parsed)) {
-          alert('Arquivo JSON inválido. Deve conter uma lista de fraseologias.');
+          setStorageMsg({ type: 'error', text: 'Arquivo JSON inválido. Deve conter uma lista de fraseologias.' });
           return;
         }
         const restored: Phrase[] = parsed.map((item: any, idx: number) => ({
@@ -306,22 +319,24 @@ export default function BYODSettingsModal({
           pinned: !!item.pinned
         }));
         onPhrasesUpdated(restored, `Restauradas ${restored.length} fraseologias do backup JSON!`);
-        alert(`Backup restaurado com sucesso! (${restored.length} fraseologias)`);
+        setStorageMsg({ type: 'success', text: `Backup restaurado com sucesso! (${restored.length} fraseologias recuperadas)` });
       } catch (err) {
-        alert('Erro ao ler arquivo JSON de backup.');
+        setStorageMsg({ type: 'error', text: 'Erro ao ler arquivo JSON de backup.' });
       }
     };
     reader.readAsText(file);
+    // Reset the input value so the same file can be selected again
+    e.target.value = '';
   };
 
-  const handleResetToDefault = () => {
-    if (confirm('Tem certeza que deseja zerar todas as fraseologias e categorias? Todas as frases e categorias locais serão apagadas para você iniciar do zero ou importar um novo arquivo.')) {
-      const emptyList = resetLocalPhrasesToDefault();
-      clearAllLocalCategories();
-      setCatList([]);
-      onCategoriesUpdated([], 'Categorias zeradas!');
-      onPhrasesUpdated(emptyList, 'Repertório e categorias zerados com sucesso! Crie suas frases ou importe um backup.');
-    }
+  const executeResetToDefault = () => {
+    const emptyList = resetLocalPhrasesToDefault();
+    clearAllLocalCategories();
+    setCatList([]);
+    setConfirmResetAll(false);
+    setStorageMsg({ type: 'success', text: 'Repertório e categorias zerados com sucesso! Catálogo limpo para novo uso.' });
+    onCategoriesUpdated([], 'Categorias zeradas!');
+    onPhrasesUpdated(emptyList, 'Repertório e categorias zerados com sucesso! Crie suas frases ou importe um backup.');
   };
 
   return (
@@ -612,6 +627,23 @@ export default function BYODSettingsModal({
                 </div>
               </div>
 
+              {storageMsg && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs flex items-center gap-2.5 ${
+                    storageMsg.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  {storageMsg.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  )}
+                  <span>{storageMsg.text}</span>
+                </div>
+              )}
+
               <div className="p-4 rounded-xl bg-slate-900/40 border border-white/5 space-y-3">
                 <h4 className="text-sm font-bold text-slate-200 flex items-center gap-2">
                   <Info className="w-4 h-4 text-sky-400" />
@@ -650,13 +682,35 @@ export default function BYODSettingsModal({
                 </div>
 
                 <div className="pt-2">
-                  <button
-                    onClick={handleResetToDefault}
-                    className="flex items-center gap-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 py-2 px-3 rounded-lg transition cursor-pointer border border-transparent hover:border-rose-500/20"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Zerar catálogo local (apagar todas as frases)</span>
-                  </button>
+                  {!confirmResetAll ? (
+                    <button
+                      onClick={() => setConfirmResetAll(true)}
+                      className="flex items-center gap-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 py-2 px-3 rounded-lg transition cursor-pointer border border-transparent hover:border-rose-500/20"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Zerar catálogo local (apagar todas as frases)</span>
+                    </button>
+                  ) : (
+                    <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2">
+                      <p className="text-xs font-semibold text-rose-300">
+                        Tem certeza que deseja zerar todas as frases e categorias locais? Essa ação não pode ser desfeita.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={executeResetToDefault}
+                          className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-1.5 px-3 rounded-lg transition cursor-pointer"
+                        >
+                          Sim, zerar tudo
+                        </button>
+                        <button
+                          onClick={() => setConfirmResetAll(false)}
+                          className="bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-medium py-1.5 px-3 rounded-lg transition cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -674,6 +728,31 @@ export default function BYODSettingsModal({
                   Crie novas categorias customizadas para sua equipe ou remova categorias que você não utiliza.
                 </p>
               </div>
+
+              {catMsg && (
+                <div
+                  className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2.5 ${
+                    catMsg.type === 'success'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                      : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {catMsg.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                    )}
+                    <span>{catMsg.text}</span>
+                  </div>
+                  <button
+                    onClick={() => setCatMsg(null)}
+                    className="text-slate-400 hover:text-slate-200 text-xs cursor-pointer p-0.5"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
               {/* Add Category Form */}
               <form onSubmit={handleAddCategory} className="flex gap-2">
@@ -700,10 +779,10 @@ export default function BYODSettingsModal({
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Categorias Ativas ({catList.length})
                   </h4>
-                  {catList.length > 0 && (
+                  {catList.length > 0 && !confirmClearCats && (
                     <button
                       type="button"
-                      onClick={handleClearAllCategories}
+                      onClick={() => setConfirmClearCats(true)}
                       className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer font-medium"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -711,6 +790,28 @@ export default function BYODSettingsModal({
                     </button>
                   )}
                 </div>
+
+                {confirmClearCats && (
+                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-3">
+                    <span className="text-xs text-rose-300 font-medium">
+                      Zerar todas as categorias cadastradas?
+                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={executeClearAllCategories}
+                        className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-1 px-2.5 rounded-lg transition cursor-pointer"
+                      >
+                        Sim, zerar
+                      </button>
+                      <button
+                        onClick={() => setConfirmClearCats(false)}
+                        className="bg-white/10 hover:bg-white/15 text-slate-300 text-xs py-1 px-2.5 rounded-lg transition cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {catList.length === 0 ? (
                   <div className="p-6 text-center rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
@@ -726,6 +827,7 @@ export default function BYODSettingsModal({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
                     {catList.map((cat) => {
                       const count = phrases.filter(p => p.category === cat).length;
+                      const isConfirming = confirmDeleteCat === cat;
 
                       return (
                         <div
@@ -739,13 +841,30 @@ export default function BYODSettingsModal({
                             </span>
                           </div>
 
-                          <button
-                            onClick={() => handleDeleteCategory(cat)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
-                            title={`Remover categoria "${cat}"`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {isConfirming ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => executeDeleteCategory(cat)}
+                                className="bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold px-2 py-0.5 rounded transition cursor-pointer"
+                              >
+                                Excluir
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeleteCat(null)}
+                                className="bg-white/10 text-slate-300 hover:bg-white/20 text-[10px] px-2 py-0.5 rounded transition cursor-pointer"
+                              >
+                                Não
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmDeleteCat(cat)}
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+                              title={`Remover categoria "${cat}"`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       );
                     })}
@@ -789,13 +908,33 @@ export default function BYODSettingsModal({
               </div>
 
               <div className="pt-2 flex justify-between items-center">
-                <button
-                  type="button"
-                  onClick={handleResetSignature}
-                  className="text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer underline"
-                >
-                  Zerar assinatura
-                </button>
+                {!confirmResetSig ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmResetSig(true)}
+                    className="text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer underline"
+                  >
+                    Zerar assinatura
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-rose-300 font-medium">Zerar assinatura?</span>
+                    <button
+                      type="button"
+                      onClick={executeResetSignature}
+                      className="bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-1 px-2.5 rounded-lg transition cursor-pointer"
+                    >
+                      Sim
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmResetSig(false)}
+                      className="bg-white/10 hover:bg-white/15 text-slate-300 text-xs py-1 px-2.5 rounded-lg transition cursor-pointer"
+                    >
+                      Não
+                    </button>
+                  </div>
+                )}
 
                 <button
                   onClick={handleSaveSignature}

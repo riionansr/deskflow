@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { 
   X, 
-  Sparkles, 
+  Layers, 
   Download, 
   FileDown, 
   Loader2, 
@@ -29,7 +29,7 @@ const EXPORT_STEPS = [
 ];
 
 export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModalProps) {
-  const [exportMode, setExportMode] = useState<"plain" | "ai_optimized">("ai_optimized");
+  const [exportMode, setExportMode] = useState<"plain" | "standard">("standard");
   
   // Processing states
   const [isLoading, setIsLoading] = useState(false);
@@ -55,14 +55,14 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
 
     try {
       // Direct client-side generation without server dependency (100% reliable on Vercel / Static)
-      const content = exportMode === "ai_optimized"
+      const content = exportMode === "standard"
         ? formatPhrasesToStandardText(phrases)
         : generateExportContent(phrases, "plain");
 
       clearInterval(stepInterval);
 
       // Trigger download
-      const filename = exportMode === "ai_optimized" 
+      const filename = exportMode === "standard" 
         ? `fraseologias-padrao-deskflow-${new Date().getFullYear()}.txt` 
         : `fraseologias-exportadas-normal.txt`;
 
@@ -157,7 +157,7 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
             <div className="py-8 text-center flex flex-col items-center justify-center space-y-5" id="ai-export-loader">
               <div className="relative flex items-center justify-center">
                 <Loader2 className="w-12 h-12 text-teal-450 animate-spin" />
-                <Sparkles className="absolute w-4 h-4 text-violet-400 animate-pulse" />
+                <Layers className="absolute w-4 h-4 text-sky-400" />
               </div>
               <div className="space-y-1">
                 <h4 className="text-xs font-bold text-slate-200">Estruturando Fraseologias</h4>
@@ -187,9 +187,9 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
 
                 {/* Standard DeskFlow Export Card */}
                 <div 
-                  onClick={() => setExportMode("ai_optimized")}
+                  onClick={() => setExportMode("standard")}
                   className={`p-4 rounded-xl border transition cursor-pointer flex gap-3.5 items-start ${
-                    exportMode === "ai_optimized"
+                    exportMode === "standard"
                       ? "bg-indigo-500/10 border-indigo-400/30 text-white"
                       : "bg-slate-950/25 border-white/5 hover:bg-white/5 text-slate-405"
                   }`}
@@ -197,8 +197,8 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
                   <input
                     type="radio"
                     name="exportMode"
-                    checked={exportMode === "ai_optimized"}
-                    onChange={() => setExportMode("ai_optimized")}
+                    checked={exportMode === "standard"}
+                    onChange={() => setExportMode("standard")}
                     className="w-4 h-4 text-indigo-500 border-white/10 bg-slate-950 mt-0.5"
                   />
                   <div className="space-y-1 min-w-0">

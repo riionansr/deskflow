@@ -221,17 +221,20 @@ function parseSingleBlock(blockText: string): Partial<Phrase> | null {
  * Formats phrases list into standard human-readable text.
  */
 export function formatPhrasesToStandardText(phrases: Phrase[]): string {
+  if (!Array.isArray(phrases)) return '';
   return phrases.map((p) => {
-    const catTag = p.category ? `#${p.category.replace(/\s+/g, '')}` : '#Outros';
-    const otherTags = p.tags
-      .filter(t => t.toLowerCase() !== p.category.toLowerCase())
+    const category = p.category || 'Outros';
+    const tags = Array.isArray(p.tags) ? p.tags : [];
+    const catTag = `#${category.replace(/\s+/g, '')}`;
+    const otherTags = tags
+      .filter(t => typeof t === 'string' && t.toLowerCase() !== category.toLowerCase())
       .map(t => `#${t.replace(/\s+/g, '')}`);
     
     const allHashtags = [catTag, ...otherTags].join(' ');
 
-    return `titulo: ${p.title}
+    return `titulo: ${p.title || 'Sem título'}
 corpo:
-${p.content}
+${p.content || ''}
 ${allHashtags}`;
   }).join('\n\n---\n\n');
 }

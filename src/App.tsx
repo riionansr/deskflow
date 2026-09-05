@@ -4,7 +4,6 @@ import {
   Plus, 
   ExternalLink,
   BookmarkCheck,
-  Sparkles,
   Hash,
   Download,
   Upload,
@@ -193,9 +192,12 @@ export default function App() {
   const hotTags = useMemo(() => {
     const counts: { [key: string]: number } = {};
     phrases.forEach(p => {
-      p.tags?.forEach(t => {
-        const clean = t.trim().toLowerCase();
-        if (clean) counts[clean] = (counts[clean] || 0) + 1;
+      const tags = Array.isArray(p.tags) ? p.tags : [];
+      tags.forEach(t => {
+        if (typeof t === 'string') {
+          const clean = t.trim().toLowerCase();
+          if (clean) counts[clean] = (counts[clean] || 0) + 1;
+        }
       });
     });
     return Object.entries(counts)
@@ -206,17 +208,19 @@ export default function App() {
 
   // Handle Search & Filter logic
   const filteredPhrases = phrases.filter(p => {
-    if (selectedCategory !== 'Todos' && p.category !== selectedCategory) {
+    const phraseCategory = p.category || 'Outros';
+    if (selectedCategory !== 'Todos' && phraseCategory !== selectedCategory) {
       return false;
     }
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) return true;
 
-    const matchesTitle = p.title.toLowerCase().includes(normalizedQuery);
-    const matchesContent = p.content.toLowerCase().includes(normalizedQuery);
-    const matchesTags = p.tags.some(tag => tag.toLowerCase().includes(normalizedQuery));
-    const matchesCatValue = p.category.toLowerCase().includes(normalizedQuery);
+    const matchesTitle = (p.title || '').toLowerCase().includes(normalizedQuery);
+    const matchesContent = (p.content || '').toLowerCase().includes(normalizedQuery);
+    const tags = Array.isArray(p.tags) ? p.tags : [];
+    const matchesTags = tags.some(tag => typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery));
+    const matchesCatValue = phraseCategory.toLowerCase().includes(normalizedQuery);
 
     return matchesTitle || matchesContent || matchesTags || matchesCatValue;
   }).sort((a, b) => {
@@ -398,7 +402,7 @@ export default function App() {
           {phrases.length === 0 ? (
             <div className="glass rounded-2xl p-8 sm:p-12 text-center border border-sky-500/20 space-y-6 my-6 bg-slate-900/40 relative overflow-hidden">
               <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mx-auto text-sky-400 shadow-lg shadow-sky-500/5">
-                <Sparkles className="w-8 h-8" />
+                <Layers className="w-8 h-8" />
               </div>
 
               <div className="space-y-2 max-w-lg mx-auto">

@@ -8,7 +8,7 @@ import {
   Search,
   Copy,
   Check,
-  Sparkles,
+  Zap,
   Cloud,
   Layers,
   HelpCircle,
@@ -35,10 +35,26 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleCopySample = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedSample(id);
-    setTimeout(() => setCopiedSample(null), 2000);
+  const handleCopySample = async (text: string, id: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedSample(id);
+      setTimeout(() => setCopiedSample(null), 2000);
+    } catch (err) {
+      console.warn('Erro ao copiar amostra:', err);
+    }
   };
 
   const handlePrintManual = () => {
@@ -202,7 +218,7 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
 
                 <div className="p-4 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
                   <h5 className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Zap className="w-3.5 h-3.5" />
                     Agilidade no Service Desk
                   </h5>
                   <p className="text-slate-400 text-xs leading-relaxed">
