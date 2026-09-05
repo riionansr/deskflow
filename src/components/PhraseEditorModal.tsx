@@ -142,7 +142,10 @@ export default function PhraseEditorModal({
   const formatLink = () => insertMarkdown('[Link Portal](', ')');
   
   const insertStandardFooter = () => {
-    const footerText = loadCustomSignature();
+    let footerText = loadCustomSignature();
+    if (!footerText.trim()) {
+      footerText = '\n\nconfigure sua assinatura';
+    }
     const textarea = textareaRef.current;
     if (!textarea) {
       setContent(prev => prev + footerText);

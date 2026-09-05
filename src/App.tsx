@@ -5,13 +5,11 @@ import {
   ExternalLink,
   BookmarkCheck,
   Sparkles,
-  Database,
   Hash,
   Download,
   Upload,
   HardDrive,
   Layers,
-  FileText,
   BookOpen
 } from 'lucide-react';
 import { Phrase, CategoryType, CATEGORIES } from './types';
@@ -45,7 +43,7 @@ export default function App() {
   const [isBYODSettingsOpen, setIsBYODSettingsOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [editingPhrase, setEditingPhrase] = useState<Phrase | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'storage' | 'categories' | 'signature' | 'github' | 'gemini'>('storage');
+  const [settingsTab, setSettingsTab] = useState<'storage' | 'categories' | 'signature' | 'github'>('storage');
   
   // Status effects
   const [showNotification, setShowNotification] = useState<string | null>(null);
@@ -270,10 +268,10 @@ export default function App() {
               <button
                 onClick={() => setIsManualOpen(true)}
                 className="flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-semibold py-1.5 px-2.5 rounded-xl sm:px-3 transition cursor-pointer"
-                title="Manual Operacional do Usuário &amp; Download PDF"
+                title="Manual Operacional do Usuário"
               >
                 <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span className="hidden md:inline">Manual PDF</span>
+                <span className="hidden md:inline">Manual</span>
               </button>
 
               <button
@@ -287,10 +285,10 @@ export default function App() {
 
               <button
                 onClick={() => setIsImportOpen(true)}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-650 to-violet-650 hover:from-indigo-600 hover:to-violet-600 border border-indigo-550/20 text-white font-bold text-xs py-1.5 px-2.5 rounded-xl sm:px-3 transition active:scale-95 cursor-pointer shadow-md shadow-indigo-950/20"
-                title="Importar frases via TXT, JSON ou IA"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-sky-650 to-indigo-650 hover:from-sky-600 hover:to-indigo-600 border border-sky-500/20 text-white font-bold text-xs py-1.5 px-2.5 rounded-xl sm:px-3 transition active:scale-95 cursor-pointer shadow-md shadow-sky-950/20"
+                title="Importar catálogo de fraseologias (.txt ou .json)"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+                <Upload className="w-3.5 h-3.5 text-sky-300" />
                 <span className="hidden sm:inline">Importar</span>
               </button>
 
@@ -320,41 +318,6 @@ export default function App() {
       {/* Main Single Column Workspace Layout */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8 pb-16 sm:pb-20 flex-grow w-full">
         <div className="space-y-6">
-
-          {/* Banner BYOD Info */}
-          <div className="glass rounded-2xl p-5 border border-sky-500/15 bg-slate-900/40 relative overflow-hidden flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-sky-400">
-                <Database className="w-4 h-4" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Modo Livre BYOD (Bring Your Own Data)</span>
-              </div>
-              <h2 className="text-base font-bold text-slate-100 font-display">
-                Catálogo Pessoal &amp; Colaborativo de Fraseologias
-              </h2>
-              <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-                Edite, organize e crie frases livremente. Todos os dados permanecem salvos com total privacidade no seu próprio navegador e podem ser sincronizados com o GitHub a qualquer momento.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                onClick={() => setIsManualOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 bg-slate-800/90 hover:bg-slate-700 border border-white/10 px-3.5 py-2 rounded-xl transition cursor-pointer"
-                title="Abrir e Baixar Manual Operacional do Usuário (PDF)"
-              >
-                <FileText className="w-4 h-4 text-sky-400" />
-                <span>Manual PDF</span>
-              </button>
-
-              <button
-                onClick={() => setIsBYODSettingsOpen(true)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 px-3.5 py-2 rounded-xl transition cursor-pointer"
-              >
-                <HardDrive className="w-4 h-4" />
-                <span>Gerenciar Dados ({phrases.length} frases)</span>
-              </button>
-            </div>
-          </div>
 
           {/* Primary Interactive Search Control Box */}
           <div className="glass rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl space-y-4 bg-slate-900/60">
@@ -458,10 +421,10 @@ export default function App() {
 
                 <button
                   onClick={() => setIsImportOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition cursor-pointer shadow-lg shadow-indigo-950/30 active:scale-95 border border-indigo-400/20"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs sm:text-sm transition cursor-pointer shadow-lg shadow-sky-950/30 active:scale-95 border border-sky-400/20"
                 >
                   <Upload className="w-4 h-4" />
-                  <span>Importar de Colega (TXT, JSON ou IA)</span>
+                  <span>Importar Arquivo (.txt / .json)</span>
                 </button>
 
                 <button
@@ -469,7 +432,7 @@ export default function App() {
                   className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold transition cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4 text-sky-400" />
-                  <span>Manual do Usuário (PDF)</span>
+                  <span>Manual do Usuário</span>
                 </button>
               </div>
             </div>

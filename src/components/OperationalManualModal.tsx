@@ -10,16 +10,15 @@ import {
   Check,
   Sparkles,
   Cloud,
-  Key,
   Layers,
   HelpCircle,
   HardDrive,
   FolderPlus,
   ShieldCheck,
   ArrowRight,
+  Upload,
   ExternalLink
 } from 'lucide-react';
-import { generateOperationalManualPDF } from '../utils/pdfGenerator';
 
 interface OperationalManualModalProps {
   isOpen: boolean;
@@ -30,7 +29,7 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'workflow' | 'features' | 'import_ai' | 'sync' | 'faq'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'workflow' | 'features' | 'import_export' | 'sync' | 'faq'>('overview');
   const [copiedSample, setCopiedSample] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -40,10 +39,6 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedSample(id);
     setTimeout(() => setCopiedSample(null), 2000);
-  };
-
-  const handleDownloadPDF = () => {
-    generateOperationalManualPDF();
   };
 
   const handlePrintManual = () => {
@@ -68,25 +63,16 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
                   Manual Operacional do Usuário
                 </h3>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full">
-                  PDF Operacional
+                  Guia Web
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-400">
-                Guia prático de utilização, atalhos, fluxo de suporte e exportação em PDF
+                Guia prático de utilização, atalhos, boas práticas e fluxo de atendimento
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownloadPDF}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer active:scale-95"
-              title="Gerar e Baixar PDF Operacional"
-            >
-              <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span className="hidden sm:inline">Baixar PDF</span>
-            </button>
-
             <button
               onClick={handlePrintManual}
               className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer"
@@ -143,15 +129,15 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('import_ai')}
+            onClick={() => setActiveTab('import_export')}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold transition whitespace-nowrap ${
-              activeTab === 'import_ai'
-                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+              activeTab === 'import_export'
+                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>4. Importação &amp; IA</span>
+            <Upload className="w-3.5 h-3.5 text-sky-400" />
+            <span>4. Importação &amp; Exportação</span>
           </button>
 
           <button
@@ -193,13 +179,6 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
                 Aprenda a otimizar chamados de Service Desk, copiar frases com assinatura automática e sincronizar seu catálogo.
               </p>
             </div>
-            <button
-              onClick={handleDownloadPDF}
-              className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition shrink-0 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Download className="w-4 h-4 stroke-[2.5]" />
-              <span>Gerar PDF Completo</span>
-            </button>
           </div>
 
           {/* TAB 1: VISÃO GERAL */}
@@ -216,8 +195,8 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
                     <HardDrive className="w-3.5 h-3.5" />
                     Modelo BYOD (Bring Your Own Data)
                   </h5>
-                  <p className="text-slate-400 text-xs">
-                    Todos os seus modelos de fraseologia, assinaturas e categorias ficam gravados com 100% de privacidade no armazenamento local do seu próprio navegador (LocalStorage/IndexedDB).
+                  <p className="text-slate-400 text-xs leading-relaxed">
+                    Seus modelos de fraseologia, assinaturas e categorias ficam gravados no armazenamento local do seu próprio navegador (LocalStorage/IndexedDB). Você tem controle sobre seus dados e pode salvá-los ou sincronizá-los com serviços como Google Drive, GitHub ou exportando arquivos de backup (JSON/TXT).
                   </p>
                 </div>
 
@@ -226,7 +205,7 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
                     <Sparkles className="w-3.5 h-3.5" />
                     Agilidade no Service Desk
                   </h5>
-                  <p className="text-slate-400 text-xs">
+                  <p className="text-slate-400 text-xs leading-relaxed">
                     Projetado para eliminar retrabalho na digitação de scripts repetitivos de suporte N1/N2/N3, garantindo padrão de qualidade corporativo.
                   </p>
                 </div>
@@ -250,8 +229,8 @@ export const OperationalManualModal: React.FC<OperationalManualModalProps> = ({
                     <span><strong>Fixação de Frases (Pin):</strong> Deixe os scripts mais recorrentes no topo da página.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1.5 shrink-0"></span>
-                    <span><strong>Importação por IA (Gemini BYOK):</strong> Limpe conversas ou chamados e converta em fraseologias perfeitas utilizando inteligência artificial.</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0"></span>
+                    <span><strong>Importação e Exportação Rápida:</strong> Carregue catálogos completos via arquivos de texto (.txt) ou JSON, ou compartilhe seu acervo com colegas de equipe.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
@@ -368,29 +347,40 @@ Central de Atendimento e Suporte de TI`}
             </div>
           )}
 
-          {/* TAB 4: IMPORTAÇÃO E IA */}
-          {activeTab === 'import_ai' && (
+          {/* TAB 4: IMPORTAÇÃO E EXPORTAÇÃO */}
+          {activeTab === 'import_export' && (
             <div className="space-y-5 animate-fadeIn">
               <h4 className="text-base font-bold text-slate-100 font-display flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                Importação em Lote &amp; Inteligência Artificial (Gemini BYOK)
+                <Upload className="w-4 h-4 text-sky-400" />
+                Importação em Lote &amp; Exportação de Fraseologias
               </h4>
 
-              <p className="text-slate-300 text-xs">
-                O DeskFlow permite cadastrar dezenas de fraseologias de uma só vez utilizando importação simples por arquivo TXT/JSON ou assistida por IA.
+              <p className="text-slate-300 text-xs leading-relaxed">
+                O DeskFlow permite cadastrar dezenas de fraseologias de uma só vez através do carregamento de arquivos de texto corporativos (.txt / .json) ou colando o texto diretamente.
               </p>
 
-              <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 space-y-3">
-                <h5 className="font-bold text-purple-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5" />
-                  Como usar a Inteligência Artificial (BYOK - Bring Your Own Key):
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-sky-500/20 space-y-3">
+                <h5 className="font-bold text-sky-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Como Importar Fraseologias em Lote:
                 </h5>
-                <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-300">
-                  <li>Obtenha uma chave API gratuita no Google AI Studio (a chave é 100% sua).</li>
-                  <li>Acesse o menu <strong>Armazenamento &amp; Sync &gt; Chave Gemini (BYOK)</strong> e salve sua chave.</li>
-                  <li>Clique em <strong>Importar</strong> na barra superior e cole conversas brutas de chamados.</li>
-                  <li>A IA vai analisar o texto, remover nomes sensíveis, definir título, hashtags e categoria automaticamente!</li>
+                <ol className="list-decimal list-inside space-y-2 text-xs text-slate-300 leading-relaxed">
+                  <li>Clique no botão <strong>Importar</strong> na barra superior do sistema.</li>
+                  <li>Selecione um arquivo de texto (.txt ou .json) ou cole seu texto com as frases.</li>
+                  <li>O sistema identifica automaticamente blocos com <strong>Título</strong>, <strong>Categoria</strong>, corpo do texto e <strong>#tags</strong> delimitados por linhas tracejadas (<code className="text-sky-300 font-mono">---</code>).</li>
+                  <li>Revise os itens na <strong>tela de pré-visualização</strong>: confira os títulos, categorias ou desmarque itens que não deseja incluir.</li>
+                  <li>Escolha se deseja anexar ao catálogo atual ou substituir as frases antigas e clique em <strong>Confirmar Importação</strong>.</li>
                 </ol>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
+                <h5 className="font-bold text-teal-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Download className="w-3.5 h-3.5" />
+                  Como Exportar e Compartilhar com a Equipe:
+                </h5>
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Clique no botão <strong>Exportar</strong> na barra superior para gerar um arquivo formatado com todas as suas frases para compartilhamento rápido ou impressão. Para backup integral das configurações, utilize a exportação em formato JSON no menu de Armazenamento.
+                </p>
               </div>
             </div>
           )}
@@ -450,16 +440,7 @@ Central de Atendimento e Suporte de TI`}
                     Como posso compartilhar minhas frases com um colega de trabalho?
                   </summary>
                   <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-                    Clique no menu "Exportar", baixe o arquivo em formato JSON e envie para o seu colega. Ele só precisará clicar em "Importar" no DeskFlow dele e selecionar o arquivo JSON recebido.
-                  </p>
-                </details>
-
-                <details className="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 group cursor-pointer">
-                  <summary className="font-bold text-xs text-slate-200 group-hover:text-sky-300 transition">
-                    A chave do Gemini fica segura?
-                  </summary>
-                  <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-                    Sim! Sua chave do Gemini nunca é enviada para nenhum servidor do DeskFlow. Ela permanece estritamente guardada no seu próprio navegador e é enviada diretamente do seu computador para os servidores oficiais da Google API.
+                    Clique no menu "Exportar", baixe o arquivo em formato JSON ou TXT padrão e envie para o seu colega. Ele só precisará clicar em "Importar" no DeskFlow dele e selecionar o arquivo recebido.
                   </p>
                 </details>
               </div>
@@ -477,18 +458,10 @@ Central de Atendimento e Suporte de TI`}
 
           <div className="flex items-center gap-2">
             <button
-              onClick={handleDownloadPDF}
-              className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-slate-950 font-bold text-xs rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer active:scale-95"
-            >
-              <Download className="w-4 h-4 stroke-[2.5]" />
-              <span>Baixar PDF do Manual</span>
-            </button>
-
-            <button
               onClick={onClose}
-              className="px-4 py-2 bg-white/10 hover:bg-white/15 text-slate-200 font-semibold text-xs rounded-xl transition cursor-pointer"
+              className="px-5 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition cursor-pointer"
             >
-              Fechar
+              Fechar Manual
             </button>
           </div>
         </div>

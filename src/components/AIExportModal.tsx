@@ -10,7 +10,7 @@ import {
   Settings,
   HelpCircle
 } from "lucide-react";
-import { exportWithAI } from "../lib/api";
+import { formatPhrasesToStandardText } from "../lib/textFormat";
 import { generateExportContent } from "../lib/exportFormatter";
 import { Phrase } from "../types";
 
@@ -20,11 +20,10 @@ interface AIExportModalProps {
   phrases: Phrase[];
 }
 
-const AI_EXPORT_STEPS = [
+const EXPORT_STEPS = [
   "Iniciando empacotador de fraseologias...",
-  "Estabelecendo conexão segura com o Gemini 3.5 Flash...",
-  "Analisando semântica e tópicos das respostas...",
-  "Escrevendo hashtags preditivas para o importador inteligente...",
+  "Formatando títulos e categorias...",
+  "Organizando tags e palavras-chave...",
   "Inserindo linhas de marcação para reimportação simplificada...",
   "Estruturando arquivo de saída .txt para compartilhamento..."
 ];
@@ -47,7 +46,7 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
 
     const stepInterval = setInterval(() => {
       setLoadingStepIdx((prev) => {
-        if (prev < AI_EXPORT_STEPS.length - 1) {
+        if (prev < EXPORT_STEPS.length - 1) {
           return prev + 1;
         }
         return prev;
@@ -55,18 +54,16 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
     }, 2000);
 
     try {
-      let content = "";
-      try {
-        content = await exportWithAI(phrases, exportMode);
-      } catch (serverErr) {
-        // Fallback to client-side formatted export for pure BYOD Vercel mode
-        content = generateExportContent(phrases, exportMode === "ai_optimized" ? "formatted" : "plain");
-      }
+      // Direct client-side generation without server dependency (100% reliable on Vercel / Static)
+      const content = exportMode === "ai_optimized"
+        ? formatPhrasesToStandardText(phrases)
+        : generateExportContent(phrases, "plain");
+
       clearInterval(stepInterval);
 
       // Trigger download
       const filename = exportMode === "ai_optimized" 
-        ? `fraseologias-otimizadas-ia-${new Date().getFullYear()}.txt` 
+        ? `fraseologias-padrao-deskflow-${new Date().getFullYear()}.txt` 
         : `fraseologias-exportadas-normal.txt`;
 
       const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
@@ -84,7 +81,7 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
       setIsLoading(false);
     } catch (err: any) {
       clearInterval(stepInterval);
-      setErrorWord(err.message || "Erro de conexão ao processar exportação no servidor.");
+      setErrorWord(err.message || "Erro ao processar exportação de fraseologias.");
       setIsLoading(false);
     }
   };
@@ -163,9 +160,9 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
                 <Sparkles className="absolute w-4 h-4 text-violet-400 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <h4 className="text-xs font-bold text-slate-200">Estruturando com Gemini Flash</h4>
+                <h4 className="text-xs font-bold text-slate-200">Estruturando Fraseologias</h4>
                 <div className="text-[11px] text-slate-450 italic max-w-xs leading-relaxed">
-                  "{AI_EXPORT_STEPS[loadingStepIdx]}"
+                  "{EXPORT_STEPS[loadingStepIdx]}"
                 </div>
               </div>
             </div>
@@ -188,7 +185,7 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
                   Selecione o formato de saída
                 </label>
 
-                {/* AI Optimized Export Card */}
+                {/* Standard DeskFlow Export Card */}
                 <div 
                   onClick={() => setExportMode("ai_optimized")}
                   className={`p-4 rounded-xl border transition cursor-pointer flex gap-3.5 items-start ${
@@ -206,11 +203,11 @@ export default function AIExportModal({ isOpen, onClose, phrases }: AIExportModa
                   />
                   <div className="space-y-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-bold text-slate-100 font-display">Otimizado com Gemini Flash (Melhor para reimportar)</span>
-                      <span className="text-[8px] uppercase tracking-wider font-bold bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-sm">IA Ativa</span>
+                      <span className="text-xs font-bold text-slate-100 font-display">Padrão DeskFlow (Recomendado para reimportar)</span>
+                      <span className="text-[8px] uppercase tracking-wider font-bold bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-sm">Padrão Oficial</span>
                     </div>
                     <p className="text-[10.5px] text-slate-400 leading-relaxed">
-                      Utiliza inteligência artificial para classificar cada texto e escrever uma única linha inteligente com <strong>hashtags automatizadas</strong> no rodapé de cada item (ex: <code className="text-teal-300 font-mono">#VPN #Acessos</code>). Isso permite que qualquer colega reimporte no portal e ganhe categorização perfeita imediatamente!
+                      Gera um arquivo de texto (.txt) padronizado com separadores (<code className="text-teal-300 font-mono">---</code>), títulos, categorias e <strong>hashtags no rodapé</strong> (ex: <code className="text-teal-300 font-mono">#VPN #Acessos</code>). Permite que qualquer colega ou novo navegador reimporte seu catálogo mantendo a organização perfeita!
                     </p>
                   </div>
                 </div>

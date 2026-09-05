@@ -31,8 +31,6 @@ import {
   GitHubConfig,
   loadGitHubConfig,
   saveGitHubConfig,
-  loadGeminiKey,
-  saveGeminiKey,
   downloadBackupJSON,
   resetLocalPhrasesToDefault,
   clearAllLocalCategories,
@@ -69,7 +67,7 @@ export default function BYODSettingsModal({
   onPhrasesUpdated,
   onCategoriesUpdated
 }: BYODSettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<'storage' | 'gdrive' | 'categories' | 'signature' | 'github' | 'gemini'>('gdrive');
+  const [activeTab, setActiveTab] = useState<'storage' | 'gdrive' | 'categories' | 'signature' | 'github'>('gdrive');
 
   // Google Drive Auth State
   const [googleUser, setGoogleUser] = useState<User | null>(null);
@@ -96,22 +94,16 @@ export default function BYODSettingsModal({
   const [ghSyncing, setGhSyncing] = useState<boolean>(false);
   const [ghMessage, setGhMessage] = useState<{ type: 'success' | 'error'; text: string; url?: string } | null>(null);
 
-  // Gemini Key State
-  const [geminiKey, setGeminiKey] = useState<string>('');
-  const [geminiSavedMsg, setGeminiSavedMsg] = useState<boolean>(false);
-
   // Storage Stats
   const storageSizeKb = Math.round((JSON.stringify(phrases).length * 2) / 1024);
 
   useEffect(() => {
     if (isOpen) {
       setGhConfig(loadGitHubConfig());
-      setGeminiKey(loadGeminiKey());
       setCatList(loadCategories());
       setSigText(loadCustomSignature());
       setGhMessage(null);
       setGdriveMsg(null);
-      setGeminiSavedMsg(false);
       setSigSavedMsg(false);
 
       const unsubscribe = initGoogleDriveAuth((user, token) => {
@@ -242,9 +234,9 @@ export default function BYODSettingsModal({
   };
 
   const handleResetSignature = () => {
-    if (confirm('Deseja restaurar a assinatura padrão?')) {
-      setSigText(DEFAULT_SIGNATURE);
-      saveCustomSignature(DEFAULT_SIGNATURE);
+    if (confirm('Deseja zerar a assinatura?')) {
+      setSigText('');
+      saveCustomSignature('');
       setSigSavedMsg(true);
       setTimeout(() => setSigSavedMsg(false), 3000);
     }
@@ -287,13 +279,6 @@ export default function BYODSettingsModal({
     } finally {
       setGhSyncing(false);
     }
-  };
-
-  // Gemini Key Actions
-  const handleSaveGeminiKey = () => {
-    saveGeminiKey(geminiKey);
-    setGeminiSavedMsg(true);
-    setTimeout(() => setGeminiSavedMsg(false), 3000);
   };
 
   // Restore JSON Backup File
@@ -383,7 +368,6 @@ export default function BYODSettingsModal({
             <option value="categories">📁 Categorias ({catList.length})</option>
             <option value="signature">✍️ Assinatura</option>
             <option value="github">🐙 GitHub Sync</option>
-            <option value="gemini">🔑 Chave Gemini AI (BYOK)</option>
           </select>
         </div>
 
@@ -452,19 +436,6 @@ export default function BYODSettingsModal({
           >
             <Github className="w-3.5 h-3.5" />
             <span>GitHub Sync</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('gemini')}
-            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl transition cursor-pointer border ${
-              activeTab === 'gemini'
-                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm'
-                : 'text-purple-400/80 hover:text-purple-300 bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10'
-            }`}
-          >
-            <Key className="w-3.5 h-3.5 text-purple-400" />
-            <span>Chave Gemini (BYOK)</span>
           </button>
         </div>
 
@@ -812,7 +783,7 @@ export default function BYODSettingsModal({
                   rows={6}
                   value={sigText}
                   onChange={(e) => setSigText(e.target.value)}
-                  placeholder="Atenciosamente,&#10;Equipe de Suporte de TI..."
+                  placeholder="configure sua assinatura"
                   className="w-full bg-slate-900 border border-white/10 rounded-xl p-3.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono leading-relaxed resize-y"
                 />
               </div>
@@ -823,7 +794,7 @@ export default function BYODSettingsModal({
                   onClick={handleResetSignature}
                   className="text-xs text-slate-400 hover:text-slate-200 transition cursor-pointer underline"
                 >
-                  Restaurar modelo inicial
+                  Zerar assinatura
                 </button>
 
                 <button
@@ -974,60 +945,6 @@ export default function BYODSettingsModal({
                     <span>Enviar para GitHub (Push)</span>
                   </button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: GEMINI KEY */}
-          {activeTab === 'gemini' && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-slate-900/40 border border-white/10 space-y-2">
-                <div className="flex items-center gap-2 text-purple-400 text-xs font-bold">
-                  <Key className="w-4 h-4" />
-                  <span>Bring Your Own Key (BYOK) - Gemini AI</span>
-                </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Caso hospede o sistema como um site estático (Vercel / GitHub Pages) sem servidor Node, você pode inserir sua chave pública ou gratuita da API do Gemini para habilitar a extração inteligente de fraseologias via IA.
-                </p>
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-purple-400 hover:underline pt-1 font-semibold"
-                >
-                  <span>Obter chave gratuita no Google AI Studio</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              {geminiSavedMsg && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Chave do Gemini salva com sucesso no LocalStorage!</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Chave de API do Gemini (Google AI Studio)
-                </label>
-                <input
-                  type="password"
-                  value={geminiKey}
-                  onChange={(e) => setGeminiKey(e.target.value)}
-                  placeholder="AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono"
-                />
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  onClick={handleSaveGeminiKey}
-                  className="flex items-center gap-1.5 bg-purple-500 text-slate-950 hover:bg-purple-400 text-xs font-bold py-2 px-4 rounded-xl transition cursor-pointer"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Salvar Chave Gemini</span>
-                </button>
               </div>
             </div>
           )}

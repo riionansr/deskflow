@@ -128,7 +128,7 @@ export function generateOperationalManualPDF(): void {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(51, 65, 85); // slate-700
-  const introText = 'O DeskFlow é um catálogo operacional de frases e scripts de suporte de TI desenvolvido para agilizar o atendimento de N1, N2 e N3. Operando no modo BYOD (Bring Your Own Data), 100% no navegador, o sistema garante total privacidade dos dados, armazenando fraseologias, configurações e assinaturas localmente sem depender de banco de dados centralizado.';
+  const introText = 'O DeskFlow é um catálogo operacional de frases e scripts de suporte de TI desenvolvido para agilizar o atendimento de N1, N2 e N3. Operando no modo BYOD (Bring Your Own Data), os dados ficam armazenados localmente no seu próprio navegador (LocalStorage/IndexedDB). O usuário possui total autonomia sobre seus dados, podendo sincronizá-los ou fazer backups via Google Drive, GitHub ou exportação em arquivos JSON/TXT.';
   const splitIntro = doc.splitTextToSize(introText, contentWidth - 8);
   doc.text(splitIntro, margin + 4, currentY + 6);
 
@@ -247,10 +247,10 @@ export function generateOperationalManualPDF(): void {
   currentY += 2;
 
   // -------------------------------------------------------------
-  // SECTION 4: ASSINATURA, IMPORTAÇÃO COM IA E NUVEM
+  // SECTION 4: ASSINATURA, IMPORTAÇÃO E NUVEM
   // -------------------------------------------------------------
 
-  drawSectionHeader('4. Assinatura, Importação por IA e Nuvem (Google Drive / GitHub)', '4');
+  drawSectionHeader('4. Assinatura, Importação de Frases e Nuvem (Google Drive / GitHub)', '4');
 
   const advancedBoxes = [
     {
@@ -258,8 +258,8 @@ export function generateOperationalManualPDF(): void {
       text: 'Acesse "Armazenamento & Sync" > guia "Assinatura". Defina seu nome, cargo, telefone de suporte ou central. Esta assinatura será anexada automaticamente em todas as frases copiadas.',
     },
     {
-      label: 'Importação Inteligente com IA (Gemini BYOK)',
-      text: 'No menu "Importar", você pode colar conversas brutas ou relatórios de atendimento. Insira sua chave gratuita do Gemini em "Configurações > Chave Gemini" para categorizar e gerar fraseologias limpas automaticamente.',
+      label: 'Importação em Lote de Fraseologias (.txt / .json)',
+      text: 'No menu "Importar", você pode carregar arquivos de texto (.txt, .json) ou colar blocos separados por linhas tracejadas. O sistema identifica automaticamente títulos, categorias e hashtags com revisão antes de salvar.',
     },
     {
       label: 'Sincronização em Nuvem & Backup',

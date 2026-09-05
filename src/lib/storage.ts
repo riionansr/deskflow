@@ -8,11 +8,13 @@ const CATEGORIES_STORAGE_KEY = 'deskflow_categories_v1';
 const SIGNATURE_STORAGE_KEY = 'deskflow_signature_v1';
 const BYOD_MIGRATION_KEY = 'deskflow_byod_zerado_v1';
 const CATEGORIES_MIGRATION_KEY = 'deskflow_byod_zerado_categories_v1';
+const SIGNATURE_MIGRATION_KEY = 'deskflow_byod_zerado_signature_v2';
 
 // No modelo Community BYOD, o catálogo de categorias inicia zerado (vazio).
 export const DEFAULT_CATEGORIES: string[] = [];
 
-export const DEFAULT_SIGNATURE = `\n\nAtenciosamente,\nServiço de Atendimento de Tecnologia da Informação\nCentral de Atendimento e Suporte de TI\nPortal de Atendimento e Chamados`;
+// No modelo Community BYOD, a assinatura inicia zerada (vazia).
+export const DEFAULT_SIGNATURE = '';
 
 /**
  * Load categories list from LocalStorage.
@@ -66,9 +68,18 @@ export function clearAllLocalCategories(): string[] {
 
 /**
  * Load custom signature text from LocalStorage.
+ * In Community BYOD mode, starts zerada (vazia).
  */
 export function loadCustomSignature(): string {
   try {
+    // Migration: clear old default signature text from localStorage if present
+    const migrated = localStorage.getItem(SIGNATURE_MIGRATION_KEY);
+    if (!migrated) {
+      localStorage.setItem(SIGNATURE_MIGRATION_KEY, 'true');
+      localStorage.setItem(SIGNATURE_STORAGE_KEY, '');
+      return '';
+    }
+
     const raw = localStorage.getItem(SIGNATURE_STORAGE_KEY);
     if (raw !== null) {
       return raw;
