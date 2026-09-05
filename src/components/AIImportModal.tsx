@@ -50,7 +50,7 @@ function mapCategory(input: string): string {
   if (norm.includes("terceiro") || norm.includes("outsourcing") || norm.includes("externo")) return "Terceiros";
   if (norm.includes("tentativa") || norm.includes("pendente") || norm.includes("follow") || norm.includes("aguarda")) return "Tentativas & Pendente";
   
-  return input.trim() || "Outros";
+  return input.trim() || "Geral";
 }
 
 // Highly robust offline parsing routine for DeskFlow exported text files, JSON arrays, and Standard Format
@@ -66,7 +66,7 @@ function parseDirectText(text: string): any[] {
         const jsonResults = arr.map(item => ({
           title: item.title || item.nome || 'Sem título',
           subtitle: item.subtitle || item.subtitulo || undefined,
-          category: mapCategory(item.category || item.categoria || 'Outros'),
+          category: item.category || item.categoria || 'Geral',
           content: item.content || item.texto || item.frase || '',
           tags: Array.isArray(item.tags) ? item.tags : []
         })).filter(p => p.content.trim().length > 0);
@@ -84,7 +84,7 @@ function parseDirectText(text: string): any[] {
     return standardResults.map(p => ({
       title: p.title || 'Sem título',
       subtitle: p.subtitle,
-      category: p.category || 'Outros',
+      category: p.category || 'Geral',
       content: p.content || '',
       tags: p.tags || []
     }));

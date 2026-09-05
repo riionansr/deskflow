@@ -30,7 +30,7 @@ export default function PhraseEditorModal({
   onOpenSettings
 }: PhraseEditorModalProps) {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('N2 / N3');
+  const [category, setCategory] = useState('');
   const [content, setContent] = useState('');
   const [tagsInput, setTagsInput] = useState('');
   const [orderAction, setOrderAction] = useState<'keep' | 'first' | 'last' | 'position'>('keep');
@@ -46,14 +46,14 @@ export default function PhraseEditorModal({
   useEffect(() => {
     if (phrase) {
       setTitle(phrase.title);
-      setCategory(phrase.category);
+      setCategory(phrase.category || '');
       setContent(phrase.content);
       setTagsInput(phrase.tags.join(', '));
       setOrderAction('keep');
       setTargetPosition(phrase.orderIndex || 1);
     } else {
       setTitle('');
-      setCategory(availableCategories[0] || 'N2 / N3');
+      setCategory(availableCategories[0] || '');
       setContent('');
       setTagsInput('');
       setOrderAction('last');
@@ -82,10 +82,12 @@ export default function PhraseEditorModal({
       .map(tag => tag.trim().toLowerCase())
       .filter(tag => tag.length > 0);
 
+    const finalCategory = category.trim() || 'Geral';
+
     const savedPhrase: Phrase = {
       id: phrase?.id || `phrase_${Date.now()}`,
       title: title.trim(),
-      category: category,
+      category: finalCategory,
       content: content.trim(),
       tags: tagsArray,
       updatedAt: new Date().toISOString(),
@@ -232,15 +234,19 @@ export default function PhraseEditorModal({
                     </button>
                   )}
                 </div>
-                <select
+                <input
+                  type="text"
+                  list="category-suggestions"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl glass-input text-white text-sm font-sans focus:outline-hidden font-medium bg-slate-900 cursor-pointer"
-                >
+                  placeholder={availableCategories.length > 0 ? "Selecione ou digite uma categoria..." : "Ex: Suporte N1, VPN, Senhas, Redes..."}
+                  className="w-full px-3 py-2.5 rounded-xl glass-input text-white text-sm font-sans focus:outline-hidden font-medium bg-slate-900 placeholder:text-slate-500"
+                />
+                <datalist id="category-suggestions">
                   {availableCategories.map(cat => (
-                    <option key={cat} value={cat} className="bg-slate-950 text-white">{cat}</option>
+                    <option key={cat} value={cat} />
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
 

@@ -177,10 +177,10 @@ async function startServer() {
           Suas tarefas obrigatórias:
           1. Identifique cada resposta rápida, fraseologia ou modelo contido no texto.
           2. Formate e embeleze os textos. Preserve as quebras de linha essenciais e mantenha campos variáveis em colchetes como '[Nome]' ou '[Senha]'.
-          3. Crie um 'title' (Título) curto e representativo em Português para cada item.
+          3. Se o texto já contiver títulos explícitos (ex: 'Título: ...'), preserve-os fielmente. Caso contrário, crie um 'title' representativo em Português.
           4. Crie um 'subtitle' (Subtítulo) de no máximo 10 palavras explicando o contexto de uso do modelo.
-          5. Escolha a melhor categoria para o item de forma estrita. Ela DEVE ser uma destas: 'N2 / N3', 'VPN', 'Senha & Reset', 'Acessos & Redes', 'Impressoras', 'Software', 'Terceiros', 'Tentativas & Pendente' ou 'Outros'. NÃO invente nenhuma outra categoria.
-          6. Gere de 2 a 3 tags associadas, como 'senha', 'e-mail', 'redes', 'suporte'.
+          5. Se o texto contiver a categoria explícita (ex: 'Categoria: ...'), mantenha essa categoria. Se não contiver, atribua a categoria temática mais adequada para suporte de TI (ex: 'N2 / N3', 'VPN', 'Senha & Reset', 'Acessos & Redes', 'Impressoras', 'Software', 'Terceiros', 'Tentativas & Pendente' ou 'Outros').
+          6. Gere ou extraia as tags associadas ao chamado/procedimento.
           
           Texto extraído do arquivo para processar:
           ${textContent}`
@@ -197,7 +197,7 @@ async function startServer() {
                 content: { type: Type.STRING, description: "The beautiful formatted text body with placeholders" },
                 category: { 
                   type: Type.STRING, 
-                  description: "Must be: 'N2 / N3' or 'VPN' or 'Senha & Reset' or 'Acessos & Redes' or 'Impressoras' or 'Software' or 'Terceiros' or 'Tentativas & Pendente' or 'Outros'" 
+                  description: "Category name in Portuguese (matching the explicit category from the document, or standard IT category: 'N2 / N3', 'VPN', 'Senha & Reset', 'Acessos & Redes', 'Impressoras', 'Software', 'Terceiros', 'Tentativas & Pendente', 'Outros')" 
                 },
                 tags: { 
                   type: Type.ARRAY, 

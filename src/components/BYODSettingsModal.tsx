@@ -35,6 +35,7 @@ import {
   saveGeminiKey,
   downloadBackupJSON,
   resetLocalPhrasesToDefault,
+  clearAllLocalCategories,
   loadCategories,
   saveCategories,
   loadCustomSignature,
@@ -200,14 +201,9 @@ export default function BYODSettingsModal({
   };
 
   const handleDeleteCategory = (catToDelete: string) => {
-    if (catToDelete === 'Outros') {
-      alert('A categoria "Outros" é padrão do sistema e não pode ser removida.');
-      return;
-    }
-
     const phrasesInCat = phrases.filter(p => p.category === catToDelete).length;
     const confirmMsg = phrasesInCat > 0
-      ? `Existem ${phrasesInCat} fraseologia(s) associada(s) à categoria "${catToDelete}". Se você removê-la, elas serão movidas para "Outros". Confirmar?`
+      ? `Existem ${phrasesInCat} fraseologia(s) associada(s) à categoria "${catToDelete}". Se você removê-la, a categoria será desvinculada dessas frases. Confirmar?`
       : `Deseja remover a categoria "${catToDelete}"?`;
 
     if (confirm(confirmMsg)) {
@@ -216,16 +212,25 @@ export default function BYODSettingsModal({
       saveCategories(updatedCategories);
       onCategoriesUpdated(updatedCategories, `Categoria "${catToDelete}" removida.`);
 
-      // Update any phrases using this category to 'Outros'
+      // Update phrases using this category to empty
       if (phrasesInCat > 0) {
         const updatedPhrases = phrases.map(p => {
           if (p.category === catToDelete) {
-            return { ...p, category: 'Outros' };
+            return { ...p, category: '' };
           }
           return p;
         });
         onPhrasesUpdated(updatedPhrases);
       }
+    }
+  };
+
+  const handleClearAllCategories = () => {
+    if (catList.length === 0) return;
+    if (confirm('Deseja zerar todas as categorias cadastradas? Elas serão removidas do filtro e do catálogo.')) {
+      clearAllLocalCategories();
+      setCatList([]);
+      onCategoriesUpdated([], 'Todas as categorias foram zeradas!');
     }
   };
 
@@ -325,9 +330,12 @@ export default function BYODSettingsModal({
   };
 
   const handleResetToDefault = () => {
-    if (confirm('Tem certeza que deseja restaurar as fraseologias padrão? Todas as suas frases locais não salvas serão substituídas.')) {
-      const defaults = resetLocalPhrasesToDefault();
-      onPhrasesUpdated(defaults, 'Fraseologias restauradas para o catálogo padrão!');
+    if (confirm('Tem certeza que deseja zerar todas as fraseologias e categorias? Todas as frases e categorias locais serão apagadas para você iniciar do zero ou importar um novo arquivo.')) {
+      const emptyList = resetLocalPhrasesToDefault();
+      clearAllLocalCategories();
+      setCatList([]);
+      onCategoriesUpdated([], 'Categorias zeradas!');
+      onPhrasesUpdated(emptyList, 'Repertório e categorias zerados com sucesso! Crie suas frases ou importe um backup.');
     }
   };
 
@@ -675,8 +683,8 @@ export default function BYODSettingsModal({
                     onClick={handleResetToDefault}
                     className="flex items-center gap-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 py-2 px-3 rounded-lg transition cursor-pointer border border-transparent hover:border-rose-500/20"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Restaurar catálogo inicial padrão</span>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Zerar catálogo local (apagar todas as frases)</span>
                   </button>
                 </div>
               </div>
@@ -717,28 +725,49 @@ export default function BYODSettingsModal({
 
               {/* Existing Categories List */}
               <div className="space-y-2 pt-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Categorias Ativas ({catList.length})
-                </h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Categorias Ativas ({catList.length})
+                  </h4>
+                  {catList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllCategories}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Zerar todas as categorias</span>
+                    </button>
+                  )}
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
-                  {catList.map((cat) => {
-                    const count = phrases.filter(p => p.category === cat).length;
-                    const isProtected = cat === 'Outros';
+                {catList.length === 0 ? (
+                  <div className="p-6 text-center rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
+                    <FolderPlus className="w-7 h-7 text-slate-500 mx-auto" />
+                    <p className="text-xs text-slate-400">
+                      Nenhuma categoria cadastrada. O catálogo de categorias está zerado.
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Adicione uma nova categoria acima ou digite uma diretamente ao criar ou importar fraseologias.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+                    {catList.map((cat) => {
+                      const count = phrases.filter(p => p.category === cat).length;
 
-                    return (
-                      <div
-                        key={cat}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-semibold text-slate-200 truncate">{cat}</span>
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/10 text-slate-400 shrink-0">
-                            {count} frase(s)
-                          </span>
-                        </div>
+                      return (
+                        <div
+                          key={cat}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-semibold text-slate-200 truncate">{cat}</span>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white/10 text-slate-400 shrink-0">
+                              {count} frase(s)
+                            </span>
+                          </div>
 
-                        {!isProtected ? (
                           <button
                             onClick={() => handleDeleteCategory(cat)}
                             className="p-1 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
@@ -746,13 +775,11 @@ export default function BYODSettingsModal({
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-500 italic shrink-0">Padrão</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

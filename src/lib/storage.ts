@@ -1,45 +1,45 @@
 import { Phrase } from '../types';
-import { initialPhrases } from '../data/defaultPhrases';
+import { initialPhrases, LEGACY_DEFAULT_PHRASE_IDS } from '../data/defaultPhrases';
 
 const PHRASES_STORAGE_KEY = 'deskflow_phrases_v1';
 const GITHUB_CONFIG_KEY = 'deskflow_github_config_v1';
 const GEMINI_KEY = 'deskflow_gemini_api_key_v1';
 const CATEGORIES_STORAGE_KEY = 'deskflow_categories_v1';
 const SIGNATURE_STORAGE_KEY = 'deskflow_signature_v1';
+const BYOD_MIGRATION_KEY = 'deskflow_byod_zerado_v1';
+const CATEGORIES_MIGRATION_KEY = 'deskflow_byod_zerado_categories_v1';
 
-export const DEFAULT_CATEGORIES = [
-  'N2 / N3',
-  'VPN',
-  'Senha & Reset',
-  'Acessos & Redes',
-  'Impressoras',
-  'Software',
-  'Terceiros',
-  'Tentativas & Pendente',
-  'Outros'
-];
+// No modelo Community BYOD, o catálogo de categorias inicia zerado (vazio).
+export const DEFAULT_CATEGORIES: string[] = [];
 
 export const DEFAULT_SIGNATURE = `\n\nAtenciosamente,\nServiço de Atendimento de Tecnologia da Informação\nCentral de Atendimento e Suporte de TI\nPortal de Atendimento e Chamados`;
 
 /**
  * Load categories list from LocalStorage.
+ * In Community BYOD mode, starts empty (zerado).
  */
 export function loadCategories(): string[] {
   try {
+    // Migration: clear old default categories from localStorage if present
+    const migrated = localStorage.getItem(CATEGORIES_MIGRATION_KEY);
+    if (!migrated) {
+      localStorage.setItem(CATEGORIES_MIGRATION_KEY, 'true');
+      localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify([]));
+      return [];
+    }
+
     const raw = localStorage.getItem(CATEGORIES_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        if (!parsed.includes('Outros')) {
-          parsed.push('Outros');
-        }
-        return parsed;
+      if (Array.isArray(parsed)) {
+        return Array.from(new Set(parsed.map((c: any) => typeof c === 'string' ? c.trim() : '').filter(Boolean)));
       }
     }
+    return [];
   } catch (err) {
     console.warn('Failed to load categories:', err);
+    return [];
   }
-  return [...DEFAULT_CATEGORIES];
 }
 
 /**
@@ -48,15 +48,20 @@ export function loadCategories(): string[] {
 export function saveCategories(categories: string[]): boolean {
   try {
     const clean = Array.from(new Set(categories.map(c => c.trim()).filter(Boolean)));
-    if (!clean.includes('Outros')) {
-      clean.push('Outros');
-    }
     localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(clean));
     return true;
   } catch (err) {
     console.error('Failed to save categories:', err);
     return false;
   }
+}
+
+/**
+ * Clear all categories from LocalStorage (zerar categorias).
+ */
+export function clearAllLocalCategories(): string[] {
+  saveCategories([]);
+  return [];
 }
 
 /**
@@ -97,24 +102,49 @@ export interface GitHubConfig {
 
 /**
  * Load phrases from browser LocalStorage.
- * Falls back to defaultPhrases if empty.
+ * In Community BYOD mode, the catalog starts empty (zerado).
+ * Cleans up any old legacy pre-loaded phrases if still in browser storage.
  */
 export function loadLocalPhrases(): Phrase[] {
   try {
+    const legacySet = new Set(LEGACY_DEFAULT_PHRASE_IDS);
+
+    // One-time migration: clear old legacy hardcoded default phrases from localStorage
+    const migrated = localStorage.getItem(BYOD_MIGRATION_KEY);
+    if (!migrated) {
+      localStorage.setItem(BYOD_MIGRATION_KEY, 'true');
+      const raw = localStorage.getItem(PHRASES_STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            // Keep only phrases custom-created by the user, remove legacy template phrases
+            const customOnly = parsed.filter((p: any) => p && p.id && !legacySet.has(p.id));
+            saveLocalPhrases(customOnly);
+            return customOnly;
+          }
+        } catch {
+          // ignore parse error
+        }
+      }
+      saveLocalPhrases([]);
+      return [];
+    }
+
     const raw = localStorage.getItem(PHRASES_STORAGE_KEY);
     if (!raw) {
-      const defaults = initialPhrases.map((phrase, idx) => ({ ...phrase, orderIndex: idx + 1 }));
-      saveLocalPhrases(defaults);
-      return defaults;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.sort((a: Phrase, b: Phrase) => (a.orderIndex || 0) - (b.orderIndex || 0));
+    if (Array.isArray(parsed)) {
+      // Filter out any lingering legacy IDs just in case
+      const cleaned = parsed.filter((p: any) => p && p.id && !legacySet.has(p.id));
+      return cleaned.sort((a: Phrase, b: Phrase) => (a.orderIndex || 0) - (b.orderIndex || 0));
     }
-    return initialPhrases.map((phrase, idx) => ({ ...phrase, orderIndex: idx + 1 }));
+    return [];
   } catch (err) {
     console.warn('Failed to load local phrases from LocalStorage:', err);
-    return initialPhrases.map((phrase, idx) => ({ ...phrase, orderIndex: idx + 1 }));
+    return [];
   }
 }
 
@@ -189,12 +219,18 @@ export function saveGeminiKey(key: string): boolean {
 }
 
 /**
- * Reset local storage back to initial defaults
+ * Reset / Clear all local phrases back to empty (Zerado)
+ */
+export function clearAllLocalPhrases(): Phrase[] {
+  saveLocalPhrases([]);
+  return [];
+}
+
+/**
+ * Reset local storage back to empty catalog (zerado)
  */
 export function resetLocalPhrasesToDefault(): Phrase[] {
-  const defaults = initialPhrases.map((phrase, idx) => ({ ...phrase, orderIndex: idx + 1 }));
-  saveLocalPhrases(defaults);
-  return defaults;
+  return clearAllLocalPhrases();
 }
 
 /**

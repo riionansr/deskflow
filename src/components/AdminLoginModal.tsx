@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, X, AlertCircle, UserPlus, LogIn, CheckCircle2, KeyRound } from 'lucide-react';
 import { UserAccount, Phrase } from '../types';
-import { initialPhrases } from '../data/defaultPhrases';
 import { hashPassword } from '../lib/crypto';
 import { saveAccounts } from '../lib/api';
 
@@ -114,11 +113,8 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess, accou
       }
 
       const passHash = await hashPassword(registerPassword);
-      // Seed new account with ordered copies of default template
-      const userPhrases: Phrase[] = initialPhrases.map((phrase, idx) => ({
-        ...phrase,
-        orderIndex: idx + 1
-      }));
+      // Inicia a conta do novo técnico com repertório zerado (Modo Livre BYOD)
+      const userPhrases: Phrase[] = [];
 
       const newAccount: UserAccount = {
         username: user,

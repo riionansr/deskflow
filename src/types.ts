@@ -18,27 +18,6 @@ export interface UserAccount {
   createdAt: string;
 }
 
-export type CategoryType = 
-  | 'Todos'
-  | 'N2 / N3'
-  | 'VPN'
-  | 'Senha & Reset'
-  | 'Acessos & Redes'
-  | 'Impressoras'
-  | 'Software'
-  | 'Terceiros'
-  | 'Tentativas & Pendente'
-  | 'Outros';
+export type CategoryType = string;
 
-export const CATEGORIES: CategoryType[] = [
-  'Todos',
-  'N2 / N3',
-  'VPN',
-  'Senha & Reset',
-  'Acessos & Redes',
-  'Impressoras',
-  'Software',
-  'Terceiros',
-  'Tentativas & Pendente',
-  'Outros'
-];
+export const CATEGORIES: CategoryType[] = [];

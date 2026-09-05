@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Plus, 
@@ -8,8 +8,11 @@ import {
   Database,
   Hash,
   Download,
+  Upload,
   HardDrive,
-  Layers
+  Layers,
+  FileText,
+  BookOpen
 } from 'lucide-react';
 import { Phrase, CategoryType, CATEGORIES } from './types';
 import PhraseCard from './components/PhraseCard';
@@ -17,11 +20,13 @@ import PhraseEditorModal from './components/PhraseEditorModal';
 import AIImportModal from './components/AIImportModal';
 import AIExportModal from './components/AIExportModal';
 import BYODSettingsModal from './components/BYODSettingsModal';
+import { OperationalManualModal } from './components/OperationalManualModal';
 import { 
   loadLocalPhrases, 
   saveLocalPhrases, 
   loadGitHubConfig,
-  loadCategories
+  loadCategories,
+  saveCategories
 } from './lib/storage';
 import { pushPhrasesToGitHub } from './lib/githubSync';
 import { savePhrases } from './lib/api';
@@ -38,6 +43,7 @@ export default function App() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isBYODSettingsOpen, setIsBYODSettingsOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const [editingPhrase, setEditingPhrase] = useState<Phrase | null>(null);
   const [settingsTab, setSettingsTab] = useState<'storage' | 'categories' | 'signature' | 'github' | 'gemini'>('storage');
   
@@ -50,6 +56,12 @@ export default function App() {
     setPhrases(loaded);
     setCategories(loadCategories());
   }, []);
+
+  useEffect(() => {
+    if (selectedCategory !== 'Todos' && !categories.includes(selectedCategory)) {
+      setSelectedCategory('Todos');
+    }
+  }, [categories, selectedCategory]);
 
   const notify = (msg: string) => {
     setShowNotification(msg);
@@ -109,6 +121,14 @@ export default function App() {
       orderIndex: idx + 1
     }));
 
+    // Auto-registrar categoria se for nova
+    const catName = savedPhrase.category?.trim();
+    if (catName && !categories.includes(catName)) {
+      const updatedCats = [...categories, catName];
+      setCategories(updatedCats);
+      saveCategories(updatedCats);
+    }
+
     persistAndSync(finalOrderedList, 'Fraseologia salva!');
   };
 
@@ -149,6 +169,15 @@ export default function App() {
       ? preparedPhrases 
       : [...phrases, ...preparedPhrases];
 
+    // Registrar novas categorias importadas
+    const importedCats = preparedPhrases.map(p => p.category?.trim()).filter(Boolean);
+    const existingCats = shouldClearPrevious ? [] : categories;
+    const combinedCats = Array.from(new Set([...existingCats, ...importedCats]));
+    if (combinedCats.length !== categories.length || shouldClearPrevious) {
+      setCategories(combinedCats);
+      saveCategories(combinedCats);
+    }
+
     persistAndSync(finalPhrasesList, `${preparedPhrases.length} fraseologias importadas!`);
   };
 
@@ -162,8 +191,20 @@ export default function App() {
     setIsEditorOpen(true);
   };
 
-  // Hot Tags search lists
-  const hotTags = ['365', 'vpn', 'senha', 'terceiro', 'impressora', 'n2', 'link', 'termo', 'remoto'];
+  // Dynamic Hot Tags search list based on active phrases
+  const hotTags = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    phrases.forEach(p => {
+      p.tags?.forEach(t => {
+        const clean = t.trim().toLowerCase();
+        if (clean) counts[clean] = (counts[clean] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tag]) => tag);
+  }, [phrases]);
 
   // Handle Search & Filter logic
   const filteredPhrases = phrases.filter(p => {
@@ -227,6 +268,15 @@ export default function App() {
             {/* Top Toolbar Quick Indicators */}
             <div className="flex items-center gap-1.5 shrink-0">
               <button
+                onClick={() => setIsManualOpen(true)}
+                className="flex items-center gap-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 text-xs font-semibold py-1.5 px-2.5 rounded-xl sm:px-3 transition cursor-pointer"
+                title="Manual Operacional do Usuário &amp; Download PDF"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span className="hidden md:inline">Manual PDF</span>
+              </button>
+
+              <button
                 onClick={() => setIsBYODSettingsOpen(true)}
                 className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-white/10 text-xs font-semibold py-1.5 px-2.5 rounded-xl sm:px-3 transition cursor-pointer"
                 title="Configurações de Armazenamento Local e Sincronização GitHub"
@@ -286,7 +336,16 @@ export default function App() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                onClick={() => setIsManualOpen(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-200 bg-slate-800/90 hover:bg-slate-700 border border-white/10 px-3.5 py-2 rounded-xl transition cursor-pointer"
+                title="Abrir e Baixar Manual Operacional do Usuário (PDF)"
+              >
+                <FileText className="w-4 h-4 text-sky-400" />
+                <span>Manual PDF</span>
+              </button>
+
               <button
                 onClick={() => setIsBYODSettingsOpen(true)}
                 className="flex items-center gap-1.5 text-xs font-semibold text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 px-3.5 py-2 rounded-xl transition cursor-pointer"
@@ -319,57 +378,102 @@ export default function App() {
             </div>
 
             {/* Quick Hot-Tags Filter Bar */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
-                <Hash className="w-3 h-3 text-sky-400" />
-                Tags frequentes:
-              </span>
-              {hotTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setSearchQuery(tag)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
-                    searchQuery.toLowerCase() === tag.toLowerCase()
-                      ? 'bg-sky-500 text-slate-950 font-bold'
-                      : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
-                  }`}
-                >
-                  #{tag}
-                </button>
-              ))}
-            </div>
+            {hotTags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
+                  <Hash className="w-3 h-3 text-sky-400" />
+                  Tags frequentes:
+                </span>
+                {hotTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setSearchQuery(tag)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
+                      searchQuery.toLowerCase() === tag.toLowerCase()
+                        ? 'bg-sky-500 text-slate-950 font-bold'
+                        : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    #{tag}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Horizontal Category Selectors Slider */}
-            <div className="pt-2 border-t border-white/5">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {['Todos', ...categories].map((cat) => {
-                  const count = getCategoryCount(cat as any);
-                  const isSelected = selectedCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-2 shrink-0 ${
-                        isSelected
-                          ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20 font-bold'
-                          : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 border border-white/5'
-                      }`}
-                    >
-                      <span>{cat}</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                        isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-white/10 text-slate-400'
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
+            {categories.length > 0 && (
+              <div className="pt-2 border-t border-white/5">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                  {['Todos', ...categories].map((cat) => {
+                    const count = getCategoryCount(cat as any);
+                    const isSelected = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-2 shrink-0 ${
+                          isSelected
+                            ? 'bg-sky-500 text-slate-950 shadow-md shadow-sky-500/20 font-bold'
+                            : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 border border-white/5'
+                        }`}
+                      >
+                        <span>{cat}</span>
+                        <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                          isSelected ? 'bg-slate-950/20 text-slate-950' : 'bg-white/10 text-slate-400'
+                        }`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Phrase Cards Collection */}
-          {filteredPhrases.length > 0 ? (
+          {phrases.length === 0 ? (
+            <div className="glass rounded-2xl p-8 sm:p-12 text-center border border-sky-500/20 space-y-6 my-6 bg-slate-900/40 relative overflow-hidden">
+              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mx-auto text-sky-400 shadow-lg shadow-sky-500/5">
+                <Sparkles className="w-8 h-8" />
+              </div>
+
+              <div className="space-y-2 max-w-lg mx-auto">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-100 font-display">
+                  Seu Repertório de Fraseologias está Zerado
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  No modelo <strong>Community BYOD</strong>, o DeskFlow não vem com frases pré-carregadas. Você tem total liberdade para montar seu próprio acervo de atendimento do zero ou importar um catálogo compartilhado por colegas.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                <button
+                  onClick={openCreateModal}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs sm:text-sm transition cursor-pointer shadow-lg shadow-sky-500/20 active:scale-95"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>Criar Primeira Frase</span>
+                </button>
+
+                <button
+                  onClick={() => setIsImportOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition cursor-pointer shadow-lg shadow-indigo-950/30 active:scale-95 border border-indigo-400/20"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Importar de Colega (TXT, JSON ou IA)</span>
+                </button>
+
+                <button
+                  onClick={() => setIsManualOpen(true)}
+                  className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold transition cursor-pointer"
+                >
+                  <BookOpen className="w-4 h-4 text-sky-400" />
+                  <span>Manual do Usuário (PDF)</span>
+                </button>
+              </div>
+            </div>
+          ) : filteredPhrases.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
               {filteredPhrases.map((phrase) => (
                 <PhraseCard
@@ -497,6 +601,11 @@ export default function App() {
           setCategories(newCategories);
           if (msg) notify(msg);
         }}
+      />
+
+      <OperationalManualModal
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
       />
 
     </div>
