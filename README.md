@@ -1,70 +1,70 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/riionansr/deskflow/main/assets/dflow_img.png" alt="DeskFlow" width="720">
+<img src="assets/dflow_img.png" alt="DeskFlow" width="720">
 
 # DeskFlow
-**Produtividade operacional para Suporte de TI**
+**Operational productivity for IT Support**
 
-[🚀 Demo](https://deskflow-blush.vercel.app) · [📘 Manual do Usuário](https://github.com/riionansr/deskflow/blob/main/docs/DeskFlow_Manual_Completo.pdf) · [📦 Repositório](https://github.com/riionansr/deskflow)
+[🚀 Demo](https://deskflow-blush.vercel.app) · [📘 User Manual](docs/DeskFlow_Manual_Completo.pdf) · [📦 Repository](https://github.com/riionansr/deskflow)
 
 </div>
 
 ---
 
-## O problema
+## The problem
 
-Analistas de N1/N2/N3 perdem tempo precioso reescrevendo as mesmas respostas, procurando o procedimento certo em wikis desatualizadas ou copiando trechos de chamados antigos — tudo isso no meio de um atendimento que já está correndo contra o SLA.
+N1/N2/N3 analysts lose precious time rewriting the same replies, digging through outdated wikis for the right procedure, or copy-pasting from old tickets — all while a live case is already running against the SLA clock.
 
-## A solução
+## The solution
 
-O **DeskFlow** é um portal leve e ágil para centralizar, organizar e acelerar o uso de fraseologias, scripts e procedimentos operacionais durante o atendimento. Ele roda inteiramente no navegador, foi desenhado para ficar fixado na barra lateral ao lado do sistema de chamados, e devolve a resposta certa em segundos — com busca instantânea, tags e assinatura automática.
+**DeskFlow** is a lightweight, fast portal to centralize, organize and speed up the use of standardized phrases, scripts and operational procedures during IT support. It runs entirely in the browser, is built to sit in your browser's sidebar next to your ticketing system, and gets you the right answer in seconds — with instant search, tags and automatic signature.
 
-## Principais recursos
+## Key features
 
-- 🔎 **Busca instantânea por título, categoria e hashtags** (`#VPN`, `#Senha`, `#Impressora`...)
-- 📋 **Cópia em 1 clique** com assinatura pessoal anexada automaticamente
-- 📌 **Fixação de frases** mais usadas no topo do catálogo
-- 🗂️ **Categorias e tags** personalizáveis por fluxo de atendimento
-- 📥 **Importação de documentos** (.txt, .docx, .json) com leitura estrutural 100% local
-- 📤 **Exportação padronizada (.txt)** pronta para wikis, Git ou manuais operacionais
-- 🧭 **Modo barra lateral** — uso lado a lado com o sistema de chamados e assistentes de IA do navegador
+- 🔎 **Instant search** by title, category and hashtags (`#VPN`, `#Password`, `#Printer`...)
+- 📋 **One-click copy** with your personal signature attached automatically
+- 📌 **Pin frequently used phrases** to the top of the catalog
+- 🗂️ **Custom categories and tags** per support flow
+- 📥 **Document import** (.txt, .docx, .json) with 100% local structural parsing
+- 📤 **Standardized export (.txt)** ready for wikis, Git or operational manuals
+- 🧭 **Sidebar mode** — use side-by-side with your ticketing system and browser AI assistants
 
-## Privacidade & BYOD
+## Privacy & BYOD
 
-O DeskFlow segue o modelo **local-first (BYOD — Bring Your Own Data)**: por padrão, os dados residem no `localStorage` do navegador do analista. Não há BYOK nem qualquer integração com IA generativa — toda leitura e importação de documentos é feita por algoritmos determinísticos, sem enviar conteúdo a serviços externos. A sincronização em nuvem (Firestore) é **opcional** e serve apenas para compartilhar o catálogo entre a equipe.
+DeskFlow follows a **local-first (BYOD — Bring Your Own Data)** model: by default, data lives in the analyst's browser `localStorage`. There is no BYOK and no generative-AI integration — all document reading and importing is done through deterministic algorithms, with no content ever sent to external services. Cloud sync (Firestore) is **optional** and exists solely to share the catalog across a team.
 
-> Detalhes completos de funcionamento, privacidade e integrações estão no [Manual do Usuário](https://github.com/riionansr/deskflow/blob/main/docs/DeskFlow_Manual_Completo.pdf).
+> Full details on how it works, privacy and integrations are in the [User Manual](docs/DeskFlow_Manual_Completo.pdf).
 
 ## Stack
 
 - **Frontend:** TypeScript, 100% client-side
-- **Armazenamento:** `localStorage` (local-first)
-- **Sincronização opcional:** Firestore
+- **Storage:** `localStorage` (local-first)
+- **Optional sync:** Firestore
 - **Deploy:** Vercel
 
-## Documentação
+## Documentation
 
-Este README cobre a visão de produto e engenharia. Para o passo a passo operacional completo — workflow de atendimento, importação/exportação e configuração da barra lateral em Opera, Firefox, Edge e Chrome — consulte o manual em `/docs`:
+This README covers the product/engineering overview. For the full operational walkthrough — support workflow, import/export and sidebar setup on Opera, Firefox, Edge and Chrome — check the manual in `/docs`:
 
 ```
 docs/
-└── DeskFlow_Manual_Completo.pdf   # Manual operacional + guia de produtividade (barra lateral)
+└── DeskFlow_Manual_Completo.pdf   # Operational manual + productivity guide (sidebar setup)
 ```
 
 ## Roadmap
 
-Ideias em avaliação para as próximas versões — acompanhe as *issues* do repositório para o status atualizado:
+Ideas under consideration for upcoming versions — check the repo's issues for the current status:
 
-- [ ] Espaços/times com catálogos segmentados
-- [ ] Exportação direta para Confluence/Notion
-- [ ] Atalhos de teclado para busca e cópia
+- [ ] Team spaces with segmented catalogs
+- [ ] Direct export to Confluence/Notion
+- [ ] Keyboard shortcuts for search and copy
 
-## Como usar
+## Getting started
 
-O DeskFlow é 100% web — basta acessar o [link da aplicação](https://deskflow-blush.vercel.app) e começar a usar. Para fixá-lo na barra lateral do seu navegador (recomendado), veja o passo a passo no manual acima.
+DeskFlow is 100% web-based — just open the [live app](https://deskflow-blush.vercel.app) and start using it. To pin it to your browser's sidebar (recommended), check the step-by-step guide in the manual above.
 
 ---
 
 <div align="center">
-DeskFlow Community • Feito para quem vive de Service Desk
+DeskFlow Community • Built for people who live in Service Desk
 </div>
