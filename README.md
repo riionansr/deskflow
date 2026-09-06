@@ -51,14 +51,6 @@ docs/
 └── DeskFlow_Manual_Completo.pdf   # Operational manual + productivity guide (sidebar setup)
 ```
 
-## Roadmap
-
-Ideas under consideration for upcoming versions — check the repo's issues for the current status:
-
-- [ ] Team spaces with segmented catalogs
-- [ ] Direct export to Confluence/Notion
-- [ ] Keyboard shortcuts for search and copy
-
 ## Getting started
 
 DeskFlow is 100% web-based — just open the [live app](https://deskflow-blush.vercel.app) and start using it. To pin it to your browser's sidebar (recommended), check the step-by-step guide in the manual above.
