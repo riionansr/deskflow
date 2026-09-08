@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -9,7 +9,8 @@ import {
   Upload,
   HardDrive,
   Layers,
-  BookOpen
+  BookOpen,
+  ArrowUp
 } from 'lucide-react';
 import { Phrase, CategoryType, CATEGORIES } from './types';
 import PhraseCard from './components/PhraseCard';
@@ -46,6 +47,31 @@ export default function App() {
   
   // Status effects
   const [showNotification, setShowNotification] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // References
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect scroll to show or hide the back-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+    // Focus search bar for rapid typing once at the top
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 350);
+  };
 
   // Load initial data from LocalStorage
   useEffect(() => {
@@ -241,7 +267,7 @@ export default function App() {
       
       {/* Toast Notification */}
       {showNotification && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 glass px-5 py-3.5 rounded-xl shadow-2xl border border-white/10 animate-slide-up text-sm font-medium bg-slate-950/90 text-white">
+        <div className="fixed bottom-20 sm:bottom-6 right-6 z-50 flex items-center gap-2.5 glass px-5 py-3.5 rounded-xl shadow-2xl border border-white/10 animate-slide-up text-sm font-medium bg-slate-950/90 text-white">
           <BookmarkCheck className="w-4.5 h-4.5 text-emerald-400" />
           <span>{showNotification}</span>
         </div>
@@ -328,6 +354,8 @@ export default function App() {
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
               <input
+                ref={searchInputRef}
+                id="main-search-input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -575,6 +603,25 @@ export default function App() {
         isOpen={isManualOpen}
         onClose={() => setIsManualOpen(false)}
       />
+
+      {/* Floating Scroll-to-Top Action Button */}
+      <button
+        type="button"
+        id="btn-scroll-to-top"
+        onClick={scrollToTop}
+        title="Voltar ao topo e pesquisar"
+        aria-label="Voltar ao topo e pesquisar"
+        className={`fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-2.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 hover:border-sky-400/40 shadow-xl backdrop-blur-md transition-all duration-300 group cursor-pointer active:scale-95 ${
+          showScrollTop 
+            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+            : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}
+      >
+        <ArrowUp className="w-4 h-4 text-sky-400 transition-transform duration-200 group-hover:-translate-y-0.5" />
+        <span className="text-xs font-semibold tracking-wide pr-1 hidden sm:inline-block text-slate-300 group-hover:text-white">
+          Subir
+        </span>
+      </button>
 
     </div>
   );
