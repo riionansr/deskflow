@@ -262,7 +262,18 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
       {safeTags.length > 0 && (
         <div className="px-5 pb-4 pt-1 border-t border-white/5 flex flex-wrap gap-1.5 items-center mt-auto">
           {safeTags.map((tag) => {
-            const isMatched = typeof tag === 'string' && searchQuery && tag.toLowerCase().includes(searchQuery.toLowerCase());
+            const tagStr = typeof tag === 'string' ? tag.toLowerCase().trim() : '';
+            const searchTokens = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
+            const isMatched = !!tagStr && searchTokens.some(token => {
+              if (token.startsWith('#')) {
+                return tagStr.includes(token.slice(1).trim());
+              }
+              if (token.startsWith('tag:') || token.startsWith('t:')) {
+                return tagStr.includes(token.replace(/^(tag:|t:)/, '').trim());
+              }
+              return tagStr.includes(token);
+            });
+
             return (
               <button
                 key={tag}

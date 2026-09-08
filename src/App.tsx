@@ -232,30 +232,76 @@ export default function App() {
       .map(([tag]) => tag);
   }, [phrases]);
 
-  // Handle Search & Filter logic
-  const filteredPhrases = phrases.filter(p => {
-    const phraseCategory = p.category || 'Outros';
-    if (selectedCategory !== 'Todos' && phraseCategory !== selectedCategory) {
-      return false;
-    }
+  // Handle Search & Filter logic with advanced syntax support (#tag, #categoria, categoria: termo, cat: termo, multi-termo)
+  const filteredPhrases = useMemo(() => {
+    return phrases.filter(p => {
+      const phraseCategory = p.category || 'Outros';
+      
+      // Category tab selector constraint
+      if (selectedCategory !== 'Todos' && phraseCategory.toLowerCase() !== selectedCategory.toLowerCase()) {
+        return false;
+      }
 
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return true;
+      const rawQuery = searchQuery.trim();
+      if (!rawQuery) return true;
 
-    const matchesTitle = (p.title || '').toLowerCase().includes(normalizedQuery);
-    const matchesContent = (p.content || '').toLowerCase().includes(normalizedQuery);
-    const tags = Array.isArray(p.tags) ? p.tags : [];
-    const matchesTags = tags.some(tag => typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery));
-    const matchesCatValue = phraseCategory.toLowerCase().includes(normalizedQuery);
+      // Extract all tokens separated by space
+      const tokens = rawQuery.split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) return true;
 
-    return matchesTitle || matchesContent || matchesTags || matchesCatValue;
-  }).sort((a, b) => {
-    const aPinned = !!a.pinned;
-    const bPinned = !!b.pinned;
-    if (aPinned && !bPinned) return -1;
-    if (!aPinned && bPinned) return 1;
-    return (a.orderIndex || 0) - (b.orderIndex || 0);
-  });
+      const titleLower = (p.title || '').toLowerCase();
+      const contentLower = (p.content || '').toLowerCase();
+      const catLower = phraseCategory.toLowerCase();
+      const tagsList = (Array.isArray(p.tags) ? p.tags : [])
+        .filter((t): t is string => typeof t === 'string')
+        .map(t => t.toLowerCase().trim());
+
+      // Every token must match the card according to its criteria (AND logic across tokens)
+      return tokens.every(token => {
+        const tokenLower = token.toLowerCase();
+
+        // 1. Explicit Category Prefix: "categoria:termo", "cat:termo", or "c:termo"
+        if (tokenLower.startsWith('categoria:') || tokenLower.startsWith('cat:') || tokenLower.startsWith('c:')) {
+          const catVal = tokenLower.replace(/^(categoria:|cat:|c:)/, '').trim();
+          if (!catVal) return true;
+          return catLower.includes(catVal);
+        }
+
+        // 2. Explicit Tag Prefix: "tag:termo" or "t:termo"
+        if (tokenLower.startsWith('tag:') || tokenLower.startsWith('t:')) {
+          const tagVal = tokenLower.replace(/^(tag:|t:)/, '').trim();
+          if (!tagVal) return true;
+          return tagsList.some(t => t.includes(tagVal));
+        }
+
+        // 3. Hashtag syntax: "#algo" (e.g., "#mfa", "#unilims", "#vpn")
+        // Checks BOTH tags (e.g. tag 'mfa') AND category name (e.g. category 'VPN' or 'Unilims')
+        if (tokenLower.startsWith('#')) {
+          const hashVal = tokenLower.slice(1).trim();
+          if (!hashVal) return true;
+          const matchesTag = tagsList.some(t => t.includes(hashVal));
+          const matchesCat = catLower.includes(hashVal);
+          return matchesTag || matchesCat;
+        }
+
+        // 4. Standard term: matches Title, Content, Tags, or Category name
+        return (
+          titleLower.includes(tokenLower) ||
+          contentLower.includes(tokenLower) ||
+          tagsList.some(t => t.includes(tokenLower)) ||
+          catLower.includes(tokenLower)
+        );
+      });
+    }).sort((a, b) => {
+      // 1. Pinned cards of this query/category ALWAYS come first
+      const aPinned = !!a.pinned;
+      const bPinned = !!b.pinned;
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+      // 2. Order index maintained
+      return (a.orderIndex || 0) - (b.orderIndex || 0);
+    });
+  }, [phrases, selectedCategory, searchQuery]);
 
   const getCategoryCount = (cat: CategoryType) => {
     if (cat === 'Todos') return phrases.length;
@@ -359,7 +405,7 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Pesquisar fraseologia por título, categoria, palavra-chave ou hashtag (ex: #VPN, #365)..."
+                placeholder="Pesquise por termo, #tag, #categoria ou sintaxe (ex: #mfa reset, categoria:unilims pendente)..."
                 className="w-full bg-slate-950/80 border border-white/10 rounded-xl pl-12 pr-10 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/20 transition font-medium"
               />
               {searchQuery && (
@@ -379,19 +425,40 @@ export default function App() {
                   <Hash className="w-3 h-3 text-sky-400" />
                   Tags frequentes:
                 </span>
-                {hotTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => setSearchQuery(tag)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
-                      searchQuery.toLowerCase() === tag.toLowerCase()
-                        ? 'bg-sky-500 text-slate-950 font-bold'
-                        : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    #{tag}
-                  </button>
-                ))}
+                {hotTags.map((tag) => {
+                  const tagLower = tag.toLowerCase();
+                  const isCurrentTagActive = searchQuery.toLowerCase().split(/\s+/).some(tok => tok === `#${tagLower}` || tok === tagLower);
+
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        if (isCurrentTagActive) {
+                          // If already active, remove it
+                          const remaining = searchQuery
+                            .split(/\s+/)
+                            .filter(tok => tok.toLowerCase() !== `#${tagLower}` && tok.toLowerCase() !== tagLower)
+                            .join(' ');
+                          setSearchQuery(remaining);
+                        } else {
+                          // Append or set hashtag
+                          setSearchQuery(prev => {
+                            const trimmed = prev.trim();
+                            return trimmed ? `${trimmed} #${tag}` : `#${tag}`;
+                          });
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
+                        isCurrentTagActive
+                          ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
+                          : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
+                      }`}
+                      title={isCurrentTagActive ? `Remover tag #${tag} da busca` : `Filtrar por #${tag}`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -479,7 +546,17 @@ export default function App() {
                   onTogglePin={() => handleTogglePin(phrase.id)}
                   isAdmin={true}
                   searchQuery={searchQuery}
-                  onTagClick={(tag) => setSearchQuery(tag)}
+                  onTagClick={(tag) => {
+                    const tagLower = tag.toLowerCase();
+                    setSearchQuery(prev => {
+                      const tokens = prev.trim().split(/\s+/).filter(Boolean);
+                      const hasTag = tokens.some(t => t.toLowerCase() === `#${tagLower}` || t.toLowerCase() === tagLower);
+                      if (hasTag) {
+                        return tokens.filter(t => t.toLowerCase() !== `#${tagLower}` && t.toLowerCase() !== tagLower).join(' ');
+                      }
+                      return prev.trim() ? `${prev.trim()} #${tag}` : `#${tag}`;
+                    });
+                  }}
                 />
               ))}
             </div>
