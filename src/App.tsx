@@ -542,6 +542,7 @@ export default function App() {
         totalPhrasesCount={phrases.length}
         categories={categories}
         onOpenSettings={(tab) => {
+          if (tab) setSettingsTab(tab);
           setIsBYODSettingsOpen(true);
         }}
       />
