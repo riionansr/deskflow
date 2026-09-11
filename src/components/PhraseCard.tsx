@@ -90,24 +90,45 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
 
   const colors = getCategoryColor(phrase.category || 'Outros');
 
-  // Simple text match highlighting for title optimized for dark backgrounds
+  // Text match highlighting for title: highlights whole tokens/phrases at word boundaries
   const renderHighlightedText = (text: string = '', query: string = '') => {
     if (!text) return '';
-    if (!query.trim()) return text;
+    const trimmed = query.trim();
+    if (!trimmed) return text;
     try {
-      const escaped = query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-      const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+      // Extract search tokens, removing query prefixes like #, tag:, cat:
+      const rawTokens = trimmed
+        .split(/\s+/)
+        .map(t => t.replace(/^(?:#|tag:|cat:|categoria:|t:|c:)/i, '').trim())
+        .filter(t => t.length > 0);
+
+      if (rawTokens.length === 0) return text;
+
+      // Group exact phrase and individual tokens, ordered by length descending
+      const termsToMatch = [trimmed, ...rawTokens]
+        .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .sort((a, b) => b.length - a.length);
+
+      const uniqueTerms = Array.from(new Set(termsToMatch));
+      // Use word-boundary regex so we don't highlight inside words (e.g. 'entra' in 'Central')
+      const regex = new RegExp(`(\\b(?:${uniqueTerms.join('|')})\\b)`, 'gi');
+      const parts = text.split(regex);
+
       return (
         <span>
-          {parts.map((part, i) => 
-            part.toLowerCase() === query.toLowerCase() ? (
+          {parts.map((part, i) => {
+            const isMatch = uniqueTerms.some(term => {
+              const cleanTerm = term.replace(/\\/g, '');
+              return part.toLowerCase() === cleanTerm.toLowerCase();
+            });
+            return isMatch ? (
               <mark key={i} className="bg-amber-500/30 text-amber-200 border border-amber-500/20 font-medium rounded-xs px-0.5">
                 {part}
               </mark>
             ) : (
               part
-            )
-          )}
+            );
+          })}
         </span>
       );
     } catch {
@@ -265,13 +286,12 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
             const tagStr = typeof tag === 'string' ? tag.toLowerCase().trim() : '';
             const searchTokens = searchQuery.toLowerCase().split(/\s+/).filter(Boolean);
             const isMatched = !!tagStr && searchTokens.some(token => {
-              if (token.startsWith('#')) {
-                return tagStr.includes(token.slice(1).trim());
+              const cleanToken = token.replace(/^(?:#|tag:|t:)/, '').trim().toLowerCase();
+              if (!cleanToken) return false;
+              if (cleanToken.length <= 3) {
+                return tagStr === cleanToken || tagStr.startsWith(cleanToken) || tagStr.endsWith(cleanToken);
               }
-              if (token.startsWith('tag:') || token.startsWith('t:')) {
-                return tagStr.includes(token.replace(/^(tag:|t:)/, '').trim());
-              }
-              return tagStr.includes(token);
+              return tagStr.startsWith(cleanToken) || tagStr.includes(cleanToken);
             });
 
             return (

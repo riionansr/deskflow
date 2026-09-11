@@ -232,75 +232,192 @@ export default function App() {
       .map(([tag]) => tag);
   }, [phrases]);
 
-  // Handle Search & Filter logic with advanced syntax support (#tag, #categoria, categoria: termo, cat: termo, multi-termo)
+  // Helpers for robust search and token-matching
+  const normalizeForSearch = (str: string = ''): string => {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Word-boundary matching:
+  // - Short terms (<= 3 chars like "id", "vpn", "n2"): requires strict word boundary so "id" does NOT match inside "devido" or "validacao"
+  // - Terms > 3 chars (e.g. "entra"): requires word prefix boundary so "entra" matches "entra", "entrar", "entraid", but NOT "central"
+  const matchesWordBoundary = (normalizedText: string, normalizedTerm: string): boolean => {
+    if (!normalizedText || !normalizedTerm) return false;
+    const escaped = escapeRegex(normalizedTerm);
+    if (normalizedTerm.length <= 3) {
+      const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i');
+      return regex.test(normalizedText);
+    } else {
+      const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}`, 'i');
+      return regex.test(normalizedText);
+    }
+  };
+
+  const matchesTagItem = (tag: string, normalizedTerm: string): boolean => {
+    if (!tag || !normalizedTerm) return false;
+    const cleanTag = normalizeForSearch(tag).replace(/^#/, '');
+    const cleanTerm = normalizedTerm.replace(/^#/, '');
+    if (!cleanTag || !cleanTerm) return false;
+
+    if (cleanTerm.length <= 3) {
+      return cleanTag === cleanTerm || cleanTag.startsWith(cleanTerm) || cleanTag.endsWith(cleanTerm);
+    }
+    return cleanTag.startsWith(cleanTerm) || cleanTag.includes(cleanTerm);
+  };
+
+  // Handle Search & Filter logic with word boundary matching and relevance scoring
   const filteredPhrases = useMemo(() => {
-    return phrases.filter(p => {
+    const rawQuery = searchQuery.trim();
+    const cleanRawQuery = normalizeForSearch(rawQuery);
+
+    if (!rawQuery) {
+      return phrases
+        .filter(p => {
+          const phraseCategory = p.category || 'Outros';
+          return selectedCategory === 'Todos' || phraseCategory.toLowerCase() === selectedCategory.toLowerCase();
+        })
+        .sort((a, b) => {
+          const aPinned = !!a.pinned;
+          const bPinned = !!b.pinned;
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          return (a.orderIndex || 0) - (b.orderIndex || 0);
+        });
+    }
+
+    const tokens = rawQuery.split(/\s+/).filter(Boolean);
+    const scoredPhrases: { phrase: Phrase; score: number }[] = [];
+
+    for (const p of phrases) {
       const phraseCategory = p.category || 'Outros';
-      
-      // Category tab selector constraint
       if (selectedCategory !== 'Todos' && phraseCategory.toLowerCase() !== selectedCategory.toLowerCase()) {
-        return false;
+        continue;
       }
 
-      const rawQuery = searchQuery.trim();
-      if (!rawQuery) return true;
+      const normTitle = normalizeForSearch(p.title || '');
+      const normContent = normalizeForSearch(p.content || '');
+      const normCategory = normalizeForSearch(phraseCategory);
+      const tagsList = (Array.isArray(p.tags) ? p.tags : []).filter((t): t is string => typeof t === 'string');
 
-      // Extract all tokens separated by space
-      const tokens = rawQuery.split(/\s+/).filter(Boolean);
-      if (tokens.length === 0) return true;
+      let phraseScore = 0;
 
-      const titleLower = (p.title || '').toLowerCase();
-      const contentLower = (p.content || '').toLowerCase();
-      const catLower = phraseCategory.toLowerCase();
-      const tagsList = (Array.isArray(p.tags) ? p.tags : [])
-        .filter((t): t is string => typeof t === 'string')
-        .map(t => t.toLowerCase().trim());
+      // 1. Exact full-query phrase match bonus
+      if (tokens.length > 1) {
+        if (normTitle.includes(cleanRawQuery)) {
+          phraseScore += 1000;
+        }
+        if (normContent.includes(cleanRawQuery)) {
+          phraseScore += 500;
+        }
+        const joinedQuery = cleanRawQuery.replace(/\s+/g, '');
+        if (tagsList.some(t => matchesTagItem(t, joinedQuery))) {
+          phraseScore += 600;
+        }
+      }
 
-      // Every token must match the card according to its criteria (AND logic across tokens)
-      return tokens.every(token => {
-        const tokenLower = token.toLowerCase();
+      // 2. Evaluate all individual tokens with conjunct AND logic
+      let allTokensMatch = true;
 
-        // 1. Explicit Category Prefix: "categoria:termo", "cat:termo", or "c:termo"
-        if (tokenLower.startsWith('categoria:') || tokenLower.startsWith('cat:') || tokenLower.startsWith('c:')) {
-          const catVal = tokenLower.replace(/^(categoria:|cat:|c:)/, '').trim();
-          if (!catVal) return true;
-          return catLower.includes(catVal);
+      for (const token of tokens) {
+        const normToken = normalizeForSearch(token);
+        if (!normToken) continue;
+
+        // A. Explicit Category Prefix: "categoria:xxx", "cat:xxx" or "c:xxx"
+        if (normToken.startsWith('categoria:') || normToken.startsWith('cat:') || normToken.startsWith('c:')) {
+          const catVal = normToken.replace(/^(categoria:|cat:|c:)/, '').trim();
+          if (catVal && !matchesWordBoundary(normCategory, catVal) && !normCategory.includes(catVal)) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += 200;
+          continue;
         }
 
-        // 2. Explicit Tag Prefix: "tag:termo" or "t:termo"
-        if (tokenLower.startsWith('tag:') || tokenLower.startsWith('t:')) {
-          const tagVal = tokenLower.replace(/^(tag:|t:)/, '').trim();
-          if (!tagVal) return true;
-          return tagsList.some(t => t.includes(tagVal));
+        // B. Explicit Tag Prefix: "tag:xxx" or "t:xxx"
+        if (normToken.startsWith('tag:') || normToken.startsWith('t:')) {
+          const tagVal = normToken.replace(/^(tag:|t:)/, '').trim();
+          if (tagVal && !tagsList.some(t => matchesTagItem(t, tagVal))) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += 200;
+          continue;
         }
 
-        // 3. Hashtag syntax: "#algo" (e.g., "#mfa", "#unilims", "#vpn")
-        // Checks BOTH tags (e.g. tag 'mfa') AND category name (e.g. category 'VPN' or 'Unilims')
-        if (tokenLower.startsWith('#')) {
-          const hashVal = tokenLower.slice(1).trim();
-          if (!hashVal) return true;
-          const matchesTag = tagsList.some(t => t.includes(hashVal));
-          const matchesCat = catLower.includes(hashVal);
-          return matchesTag || matchesCat;
+        // C. Hashtag: "#xxx"
+        if (normToken.startsWith('#')) {
+          const hashVal = normToken.slice(1).trim();
+          const matchTag = tagsList.some(t => matchesTagItem(t, hashVal));
+          const matchCat = matchesWordBoundary(normCategory, hashVal);
+          if (!matchTag && !matchCat) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += matchTag ? 300 : 150;
+          continue;
         }
 
-        // 4. Standard term: matches Title, Content, Tags, or Category name
-        return (
-          titleLower.includes(tokenLower) ||
-          contentLower.includes(tokenLower) ||
-          tagsList.some(t => t.includes(tokenLower)) ||
-          catLower.includes(tokenLower)
-        );
-      });
-    }).sort((a, b) => {
-      // 1. Pinned cards of this query/category ALWAYS come first
-      const aPinned = !!a.pinned;
-      const bPinned = !!b.pinned;
-      if (aPinned && !bPinned) return -1;
-      if (!aPinned && bPinned) return 1;
-      // 2. Order index maintained
-      return (a.orderIndex || 0) - (b.orderIndex || 0);
-    });
+        // D. Standard search term
+        let tokenMatched = false;
+
+        // Title match
+        if (matchesWordBoundary(normTitle, normToken)) {
+          tokenMatched = true;
+          phraseScore += 300;
+          if (normTitle === normToken) phraseScore += 200;
+        }
+
+        // Tag match
+        if (tagsList.some(t => matchesTagItem(t, normToken))) {
+          tokenMatched = true;
+          phraseScore += 250;
+        }
+
+        // Content match
+        if (matchesWordBoundary(normContent, normToken)) {
+          tokenMatched = true;
+          phraseScore += 100;
+        }
+
+        // Category match
+        if (matchesWordBoundary(normCategory, normToken)) {
+          tokenMatched = true;
+          phraseScore += 80;
+        }
+
+        if (!tokenMatched) {
+          allTokensMatch = false;
+          break;
+        }
+      }
+
+      if (allTokensMatch) {
+        // Pinned bonus for ranking among matching phrases
+        if (p.pinned) {
+          phraseScore += 150;
+        }
+        scoredPhrases.push({ phrase: p, score: phraseScore });
+      }
+    }
+
+    // Sort by relevance score first; if equal or similar, pinned comes first
+    return scoredPhrases
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const aPinned = !!a.phrase.pinned;
+        const bPinned = !!b.phrase.pinned;
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+
+        return (a.phrase.orderIndex || 0) - (b.phrase.orderIndex || 0);
+      })
+      .map(item => item.phrase);
   }, [phrases, selectedCategory, searchQuery]);
 
   const getCategoryCount = (cat: CategoryType) => {
