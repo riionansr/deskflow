@@ -110,8 +110,8 @@ export default function PhraseCard({ phrase, onEdit, onDelete, onTogglePin, isAd
         .sort((a, b) => b.length - a.length);
 
       const uniqueTerms = Array.from(new Set(termsToMatch));
-      // Use word-boundary regex so we don't highlight inside words (e.g. 'entra' in 'Central')
-      const regex = new RegExp(`(\\b(?:${uniqueTerms.join('|')})\\b)`, 'gi');
+      // Use word-start boundary regex so prefixes (like 'sau' in 'Saudacao') highlight, while preventing matches inside words (e.g. 'entra' in 'Central')
+      const regex = new RegExp(`(\\b(?:${uniqueTerms.join('|')}))`, 'gi');
       const parts = text.split(regex);
 
       return (

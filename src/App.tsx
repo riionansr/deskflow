@@ -242,19 +242,15 @@ export default function App() {
 
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  // Word-boundary matching:
-  // - Short terms (<= 3 chars like "id", "vpn", "n2"): requires strict word boundary so "id" does NOT match inside "devido" or "validacao"
-  // - Terms > 3 chars (e.g. "entra"): requires word prefix boundary so "entra" matches "entra", "entrar", "entraid", but NOT "central"
+  // Word-start boundary matching:
+  // Requires the word to start with the term at a word boundary (e.g. (?:^|[^a-z0-9])term).
+  // This allows prefixes to match as the user types (e.g. "sau" matches "Saudacao", "loja" matches "Lojas", "sen" matches "Senha"),
+  // while PREVENTING false positives in the middle of words (e.g. "entra" never matches "Central", "id" never matches "devido" or "validacao").
   const matchesWordBoundary = (normalizedText: string, normalizedTerm: string): boolean => {
     if (!normalizedText || !normalizedTerm) return false;
     const escaped = escapeRegex(normalizedTerm);
-    if (normalizedTerm.length <= 3) {
-      const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i');
-      return regex.test(normalizedText);
-    } else {
-      const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}`, 'i');
-      return regex.test(normalizedText);
-    }
+    const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}`, 'i');
+    return regex.test(normalizedText);
   };
 
   const matchesTagItem = (tag: string, normalizedTerm: string): boolean => {
@@ -263,10 +259,13 @@ export default function App() {
     const cleanTerm = normalizedTerm.replace(/^#/, '');
     if (!cleanTag || !cleanTerm) return false;
 
-    if (cleanTerm.length <= 3) {
-      return cleanTag === cleanTerm || cleanTag.startsWith(cleanTerm) || cleanTag.endsWith(cleanTerm);
+    if (cleanTag.startsWith(cleanTerm) || cleanTag.endsWith(cleanTerm)) {
+      return true;
     }
-    return cleanTag.startsWith(cleanTerm) || cleanTag.includes(cleanTerm);
+    if (cleanTerm.length >= 3 && cleanTag.includes(cleanTerm)) {
+      return true;
+    }
+    return false;
   };
 
   // Handle Search & Filter logic with word boundary matching and relevance scoring
@@ -348,16 +347,17 @@ export default function App() {
           continue;
         }
 
-        // C. Hashtag: "#xxx"
+        // C. Hashtag: "#xxx" (e.g. #loja, #wpp, #saudacao)
         if (normToken.startsWith('#')) {
           const hashVal = normToken.slice(1).trim();
           const matchTag = tagsList.some(t => matchesTagItem(t, hashVal));
           const matchCat = matchesWordBoundary(normCategory, hashVal);
-          if (!matchTag && !matchCat) {
+          const matchTitle = matchesWordBoundary(normTitle, hashVal);
+          if (!matchTag && !matchCat && !matchTitle) {
             allTokensMatch = false;
             break;
           }
-          phraseScore += matchTag ? 300 : 150;
+          phraseScore += matchTag ? 300 : (matchTitle ? 250 : 150);
           continue;
         }
 
