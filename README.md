@@ -36,6 +36,25 @@ The friction comes from finding and reusing the right information at the right m
 When an analyst is already handling a ticket, chat, or operational request, switching between documents, notes, browser tabs, and other tools can interrupt the workflow.
 
 ---
+## From Notepad to an Operational Workflow
+
+DeskFlow was created around a simple observation: many support analysts use generic text editors and personal notes as an improvised operational knowledge base.
+
+The project turns that workflow into something more structured.
+
+Instead of keeping frequently used phrases, scripts and procedures scattered across Notepad files and personal notes, DeskFlow provides a searchable operational catalog with categories, tags, contextual search and pinned content.
+
+The goal is not to replace enterprise ITSM platforms or official knowledge bases.
+
+It is to replace the **"open a Notepad and keep everything here"** part of the support workflow.
+
+### Proven in real use
+
+DeskFlow was used in a real IT support operation for approximately one month.
+
+During this period, the user completely abandoned Notepad and traditional note-taking applications for operational support content, using DeskFlow instead to store, search and reuse frequently needed information.
+
+This practical usage directly influenced the development of features such as contextual search, tags, pinned items and the browser-sidebar workflow.
 
 ## The Solution
 
