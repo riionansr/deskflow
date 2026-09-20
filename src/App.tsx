@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -9,7 +9,8 @@ import {
   Upload,
   HardDrive,
   Layers,
-  BookOpen
+  BookOpen,
+  ArrowUp
 } from 'lucide-react';
 import { Phrase, CategoryType, CATEGORIES } from './types';
 import PhraseCard from './components/PhraseCard';
@@ -46,6 +47,31 @@ export default function App() {
   
   // Status effects
   const [showNotification, setShowNotification] = useState<string | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  // References
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect scroll to show or hide the back-to-top button
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+    // Focus search bar for rapid typing once at the top
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 350);
+  };
 
   // Load initial data from LocalStorage
   useEffect(() => {
@@ -206,30 +232,193 @@ export default function App() {
       .map(([tag]) => tag);
   }, [phrases]);
 
-  // Handle Search & Filter logic
-  const filteredPhrases = phrases.filter(p => {
-    const phraseCategory = p.category || 'Outros';
-    if (selectedCategory !== 'Todos' && phraseCategory !== selectedCategory) {
-      return false;
+  // Helpers for robust search and token-matching
+  const normalizeForSearch = (str: string = ''): string => {
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  };
+
+  const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // Word-start boundary matching:
+  // Requires the word to start with the term at a word boundary (e.g. (?:^|[^a-z0-9])term).
+  // This allows prefixes to match as the user types (e.g. "sau" matches "Saudacao", "loja" matches "Lojas", "sen" matches "Senha"),
+  // while PREVENTING false positives in the middle of words (e.g. "entra" never matches "Central", "id" never matches "devido" or "validacao").
+  const matchesWordBoundary = (normalizedText: string, normalizedTerm: string): boolean => {
+    if (!normalizedText || !normalizedTerm) return false;
+    const escaped = escapeRegex(normalizedTerm);
+    const regex = new RegExp(`(?:^|[^a-z0-9])${escaped}`, 'i');
+    return regex.test(normalizedText);
+  };
+
+  const matchesTagItem = (tag: string, normalizedTerm: string): boolean => {
+    if (!tag || !normalizedTerm) return false;
+    const cleanTag = normalizeForSearch(tag).replace(/^#/, '');
+    const cleanTerm = normalizedTerm.replace(/^#/, '');
+    if (!cleanTag || !cleanTerm) return false;
+
+    if (cleanTag.startsWith(cleanTerm) || cleanTag.endsWith(cleanTerm)) {
+      return true;
+    }
+    if (cleanTerm.length >= 3 && cleanTag.includes(cleanTerm)) {
+      return true;
+    }
+    return false;
+  };
+
+  // Handle Search & Filter logic with word boundary matching and relevance scoring
+  const filteredPhrases = useMemo(() => {
+    const rawQuery = searchQuery.trim();
+    const cleanRawQuery = normalizeForSearch(rawQuery);
+
+    if (!rawQuery) {
+      return phrases
+        .filter(p => {
+          const phraseCategory = p.category || 'Outros';
+          return selectedCategory === 'Todos' || phraseCategory.toLowerCase() === selectedCategory.toLowerCase();
+        })
+        .sort((a, b) => {
+          const aPinned = !!a.pinned;
+          const bPinned = !!b.pinned;
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          return (a.orderIndex || 0) - (b.orderIndex || 0);
+        });
     }
 
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return true;
+    const tokens = rawQuery.split(/\s+/).filter(Boolean);
+    const scoredPhrases: { phrase: Phrase; score: number }[] = [];
 
-    const matchesTitle = (p.title || '').toLowerCase().includes(normalizedQuery);
-    const matchesContent = (p.content || '').toLowerCase().includes(normalizedQuery);
-    const tags = Array.isArray(p.tags) ? p.tags : [];
-    const matchesTags = tags.some(tag => typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery));
-    const matchesCatValue = phraseCategory.toLowerCase().includes(normalizedQuery);
+    for (const p of phrases) {
+      const phraseCategory = p.category || 'Outros';
+      if (selectedCategory !== 'Todos' && phraseCategory.toLowerCase() !== selectedCategory.toLowerCase()) {
+        continue;
+      }
 
-    return matchesTitle || matchesContent || matchesTags || matchesCatValue;
-  }).sort((a, b) => {
-    const aPinned = !!a.pinned;
-    const bPinned = !!b.pinned;
-    if (aPinned && !bPinned) return -1;
-    if (!aPinned && bPinned) return 1;
-    return (a.orderIndex || 0) - (b.orderIndex || 0);
-  });
+      const normTitle = normalizeForSearch(p.title || '');
+      const normContent = normalizeForSearch(p.content || '');
+      const normCategory = normalizeForSearch(phraseCategory);
+      const tagsList = (Array.isArray(p.tags) ? p.tags : []).filter((t): t is string => typeof t === 'string');
+
+      let phraseScore = 0;
+
+      // 1. Exact full-query phrase match bonus
+      if (tokens.length > 1) {
+        if (normTitle.includes(cleanRawQuery)) {
+          phraseScore += 1000;
+        }
+        if (normContent.includes(cleanRawQuery)) {
+          phraseScore += 500;
+        }
+        const joinedQuery = cleanRawQuery.replace(/\s+/g, '');
+        if (tagsList.some(t => matchesTagItem(t, joinedQuery))) {
+          phraseScore += 600;
+        }
+      }
+
+      // 2. Evaluate all individual tokens with conjunct AND logic
+      let allTokensMatch = true;
+
+      for (const token of tokens) {
+        const normToken = normalizeForSearch(token);
+        if (!normToken) continue;
+
+        // A. Explicit Category Prefix: "categoria:xxx", "cat:xxx" or "c:xxx"
+        if (normToken.startsWith('categoria:') || normToken.startsWith('cat:') || normToken.startsWith('c:')) {
+          const catVal = normToken.replace(/^(categoria:|cat:|c:)/, '').trim();
+          if (catVal && !matchesWordBoundary(normCategory, catVal) && !normCategory.includes(catVal)) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += 200;
+          continue;
+        }
+
+        // B. Explicit Tag Prefix: "tag:xxx" or "t:xxx"
+        if (normToken.startsWith('tag:') || normToken.startsWith('t:')) {
+          const tagVal = normToken.replace(/^(tag:|t:)/, '').trim();
+          if (tagVal && !tagsList.some(t => matchesTagItem(t, tagVal))) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += 200;
+          continue;
+        }
+
+        // C. Hashtag: "#xxx" (e.g. #loja, #wpp, #saudacao)
+        if (normToken.startsWith('#')) {
+          const hashVal = normToken.slice(1).trim();
+          const matchTag = tagsList.some(t => matchesTagItem(t, hashVal));
+          const matchCat = matchesWordBoundary(normCategory, hashVal);
+          const matchTitle = matchesWordBoundary(normTitle, hashVal);
+          if (!matchTag && !matchCat && !matchTitle) {
+            allTokensMatch = false;
+            break;
+          }
+          phraseScore += matchTag ? 300 : (matchTitle ? 250 : 150);
+          continue;
+        }
+
+        // D. Standard search term
+        let tokenMatched = false;
+
+        // Title match
+        if (matchesWordBoundary(normTitle, normToken)) {
+          tokenMatched = true;
+          phraseScore += 300;
+          if (normTitle === normToken) phraseScore += 200;
+        }
+
+        // Tag match
+        if (tagsList.some(t => matchesTagItem(t, normToken))) {
+          tokenMatched = true;
+          phraseScore += 250;
+        }
+
+        // Content match
+        if (matchesWordBoundary(normContent, normToken)) {
+          tokenMatched = true;
+          phraseScore += 100;
+        }
+
+        // Category match
+        if (matchesWordBoundary(normCategory, normToken)) {
+          tokenMatched = true;
+          phraseScore += 80;
+        }
+
+        if (!tokenMatched) {
+          allTokensMatch = false;
+          break;
+        }
+      }
+
+      if (allTokensMatch) {
+        // Pinned bonus for ranking among matching phrases
+        if (p.pinned) {
+          phraseScore += 150;
+        }
+        scoredPhrases.push({ phrase: p, score: phraseScore });
+      }
+    }
+
+    // Sort by relevance score first; if equal or similar, pinned comes first
+    return scoredPhrases
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const aPinned = !!a.phrase.pinned;
+        const bPinned = !!b.phrase.pinned;
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+
+        return (a.phrase.orderIndex || 0) - (b.phrase.orderIndex || 0);
+      })
+      .map(item => item.phrase);
+  }, [phrases, selectedCategory, searchQuery]);
 
   const getCategoryCount = (cat: CategoryType) => {
     if (cat === 'Todos') return phrases.length;
@@ -241,7 +430,7 @@ export default function App() {
       
       {/* Toast Notification */}
       {showNotification && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 glass px-5 py-3.5 rounded-xl shadow-2xl border border-white/10 animate-slide-up text-sm font-medium bg-slate-950/90 text-white">
+        <div className="fixed bottom-20 sm:bottom-6 right-6 z-50 flex items-center gap-2.5 glass px-5 py-3.5 rounded-xl shadow-2xl border border-white/10 animate-slide-up text-sm font-medium bg-slate-950/90 text-white">
           <BookmarkCheck className="w-4.5 h-4.5 text-emerald-400" />
           <span>{showNotification}</span>
         </div>
@@ -328,10 +517,12 @@ export default function App() {
             <div className="relative flex items-center">
               <Search className="absolute left-4 w-5 h-5 text-slate-400 pointer-events-none" />
               <input
+                ref={searchInputRef}
+                id="main-search-input"
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Pesquisar fraseologia por título, categoria, palavra-chave ou hashtag (ex: #VPN, #365)..."
+                placeholder="Pesquise por termo, #tag, #categoria ou sintaxe (ex: #mfa reset, categoria:unilims pendente)..."
                 className="w-full bg-slate-950/80 border border-white/10 rounded-xl pl-12 pr-10 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500/50 focus:ring-2 focus:ring-sky-500/20 transition font-medium"
               />
               {searchQuery && (
@@ -351,19 +542,40 @@ export default function App() {
                   <Hash className="w-3 h-3 text-sky-400" />
                   Tags frequentes:
                 </span>
-                {hotTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => setSearchQuery(tag)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
-                      searchQuery.toLowerCase() === tag.toLowerCase()
-                        ? 'bg-sky-500 text-slate-950 font-bold'
-                        : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
-                    }`}
-                  >
-                    #{tag}
-                  </button>
-                ))}
+                {hotTags.map((tag) => {
+                  const tagLower = tag.toLowerCase();
+                  const isCurrentTagActive = searchQuery.toLowerCase().split(/\s+/).some(tok => tok === `#${tagLower}` || tok === tagLower);
+
+                  return (
+                    <button
+                      key={tag}
+                      onClick={() => {
+                        if (isCurrentTagActive) {
+                          // If already active, remove it
+                          const remaining = searchQuery
+                            .split(/\s+/)
+                            .filter(tok => tok.toLowerCase() !== `#${tagLower}` && tok.toLowerCase() !== tagLower)
+                            .join(' ');
+                          setSearchQuery(remaining);
+                        } else {
+                          // Append or set hashtag
+                          setSearchQuery(prev => {
+                            const trimmed = prev.trim();
+                            return trimmed ? `${trimmed} #${tag}` : `#${tag}`;
+                          });
+                        }
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-mono transition cursor-pointer ${
+                        isCurrentTagActive
+                          ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
+                          : 'bg-white/5 text-slate-350 hover:bg-white/10 hover:text-white border border-white/5'
+                      }`}
+                      title={isCurrentTagActive ? `Remover tag #${tag} da busca` : `Filtrar por #${tag}`}
+                    >
+                      #{tag}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -451,7 +663,17 @@ export default function App() {
                   onTogglePin={() => handleTogglePin(phrase.id)}
                   isAdmin={true}
                   searchQuery={searchQuery}
-                  onTagClick={(tag) => setSearchQuery(tag)}
+                  onTagClick={(tag) => {
+                    const tagLower = tag.toLowerCase();
+                    setSearchQuery(prev => {
+                      const tokens = prev.trim().split(/\s+/).filter(Boolean);
+                      const hasTag = tokens.some(t => t.toLowerCase() === `#${tagLower}` || t.toLowerCase() === tagLower);
+                      if (hasTag) {
+                        return tokens.filter(t => t.toLowerCase() !== `#${tagLower}` && t.toLowerCase() !== tagLower).join(' ');
+                      }
+                      return prev.trim() ? `${prev.trim()} #${tag}` : `#${tag}`;
+                    });
+                  }}
                 />
               ))}
             </div>
@@ -542,6 +764,7 @@ export default function App() {
         totalPhrasesCount={phrases.length}
         categories={categories}
         onOpenSettings={(tab) => {
+          if (tab) setSettingsTab(tab);
           setIsBYODSettingsOpen(true);
         }}
       />
@@ -574,6 +797,25 @@ export default function App() {
         isOpen={isManualOpen}
         onClose={() => setIsManualOpen(false)}
       />
+
+      {/* Floating Scroll-to-Top Action Button */}
+      <button
+        type="button"
+        id="btn-scroll-to-top"
+        onClick={scrollToTop}
+        title="Voltar ao topo e pesquisar"
+        aria-label="Voltar ao topo e pesquisar"
+        className={`fixed bottom-6 right-6 z-40 flex items-center gap-2 px-3 py-2.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-white/10 hover:border-sky-400/40 shadow-xl backdrop-blur-md transition-all duration-300 group cursor-pointer active:scale-95 ${
+          showScrollTop 
+            ? 'opacity-100 translate-y-0 pointer-events-auto' 
+            : 'opacity-0 translate-y-4 pointer-events-none'
+        }`}
+      >
+        <ArrowUp className="w-4 h-4 text-sky-400 transition-transform duration-200 group-hover:-translate-y-0.5" />
+        <span className="text-xs font-semibold tracking-wide pr-1 hidden sm:inline-block text-slate-300 group-hover:text-white">
+          Subir
+        </span>
+      </button>
 
     </div>
   );

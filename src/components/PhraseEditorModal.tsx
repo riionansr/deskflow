@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Save, Eye, Edit2, Bold, Italic, Link, List, FileSignature, Trash2, RotateCcw, Plus, AlertCircle, FileText, Settings, FolderPlus } from 'lucide-react';
+import { X, Save, Eye, Edit2, Bold, Italic, Link, List, FileSignature, Trash2, RotateCcw, Plus, AlertCircle, FileText, Settings, FolderPlus, ChevronDown, Check } from 'lucide-react';
 import { Phrase } from '../types';
 import { loadCustomSignature, loadCategories } from '../lib/storage';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -39,9 +39,29 @@ export default function PhraseEditorModal({
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [error, setError] = useState('');
 
+  // Category Combobox Dropdown state
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const availableCategories = categories.filter(cat => cat !== 'Todos');
+
+  // Handle click outside to close category dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    }
+    if (isCategoryDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCategoryDropdownOpen]);
 
   useEffect(() => {
     if (phrase) {
@@ -62,6 +82,8 @@ export default function PhraseEditorModal({
     setError('');
     setActiveTab('edit');
     setShowConfirmDelete(false);
+    setIsCategoryDropdownOpen(false);
+    setCategoryFilter('');
   }, [phrase, isOpen, totalPhrasesCount, categories]);
 
   if (!isOpen) return null;
@@ -220,7 +242,7 @@ export default function PhraseEditorModal({
                 />
               </div>
 
-              <div>
+              <div className="relative" ref={categoryDropdownRef}>
                 <div className="flex justify-between items-center mb-1.5 font-sans">
                   <label className="block text-xs font-bold text-slate-350 uppercase tracking-wilder">
                     Categoria de Atendimento
@@ -237,19 +259,134 @@ export default function PhraseEditorModal({
                     </button>
                   )}
                 </div>
-                <input
-                  type="text"
-                  list="category-suggestions"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder={availableCategories.length > 0 ? "Selecione ou digite uma categoria..." : "Ex: Suporte N1, VPN, Senhas, Redes..."}
-                  className="w-full px-3 py-2.5 rounded-xl glass-input text-white text-sm font-sans focus:outline-hidden font-medium bg-slate-900 placeholder:text-slate-500"
-                />
-                <datalist id="category-suggestions">
-                  {availableCategories.map(cat => (
-                    <option key={cat} value={cat} />
-                  ))}
-                </datalist>
+
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    id="phrase-category-input"
+                    value={category}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCategory(val);
+                      setCategoryFilter(val);
+                      setIsCategoryDropdownOpen(true);
+                    }}
+                    onClick={() => {
+                      if (!isCategoryDropdownOpen) {
+                        setCategoryFilter('');
+                        setIsCategoryDropdownOpen(true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setIsCategoryDropdownOpen(false);
+                      }
+                    }}
+                    placeholder={availableCategories.length > 0 ? "Selecione ou digite uma categoria..." : "Ex: Suporte N1, VPN, Senhas, Redes..."}
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl glass-input text-white text-sm font-sans focus:outline-hidden font-medium bg-slate-900 placeholder:text-slate-500 border border-white/10 focus:border-sky-500/50"
+                  />
+                  <button
+                    type="button"
+                    id="phrase-category-dropdown-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsCategoryDropdownOpen(prev => {
+                        const next = !prev;
+                        if (next) {
+                          setCategoryFilter('');
+                        }
+                        return next;
+                      });
+                    }}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer flex items-center justify-center"
+                    title="Ver todas as categorias"
+                    aria-label="Ver todas as categorias"
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180 text-sky-400' : ''}`} />
+                  </button>
+                </div>
+
+                {/* Dropdown Menu showing all categories */}
+                {isCategoryDropdownOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-slate-900/98 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="p-2 border-b border-white/5 flex items-center justify-between text-[11px] font-semibold text-slate-400 px-3 bg-slate-950/60">
+                      <span>Todas as Categorias ({availableCategories.length})</span>
+                      {categoryFilter.trim() && (
+                        <button
+                          type="button"
+                          onClick={() => setCategoryFilter('')}
+                          className="text-[10px] text-sky-400 hover:underline cursor-pointer"
+                        >
+                          Limpar filtro
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="max-h-56 overflow-y-auto p-1 space-y-0.5 custom-scrollbar">
+                      {availableCategories.length === 0 ? (
+                        <div className="py-3 px-3 text-center text-xs text-slate-400 space-y-1">
+                          <p>Nenhuma categoria pré-cadastrada.</p>
+                          <p className="text-[11px] text-slate-500">Digite o nome acima para criar uma nova categoria para este card.</p>
+                        </div>
+                      ) : (
+                        (() => {
+                          const filter = categoryFilter.trim().toLowerCase();
+                          const matches = filter
+                            ? availableCategories.filter(c => c.toLowerCase().includes(filter))
+                            : availableCategories;
+
+                          if (matches.length === 0) {
+                            return (
+                              <div className="py-3 px-3 text-center text-xs text-slate-400 space-y-2">
+                                <p>Nenhuma categoria encontrada com "{categoryFilter}".</p>
+                                <button
+                                  type="button"
+                                  onClick={() => setCategoryFilter('')}
+                                  className="text-[11px] text-sky-400 hover:underline font-semibold cursor-pointer"
+                                >
+                                  Ver todas as {availableCategories.length} categorias
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return matches.map((cat) => {
+                            const isSelected = category.trim().toLowerCase() === cat.trim().toLowerCase();
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => {
+                                  setCategory(cat);
+                                  setCategoryFilter('');
+                                  setIsCategoryDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition cursor-pointer ${
+                                  isSelected 
+                                    ? 'bg-sky-500/20 text-sky-300 font-semibold border border-sky-500/30' 
+                                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                }`}
+                              >
+                                <span className="truncate">{cat}</span>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0 ml-2" />}
+                              </button>
+                            );
+                          });
+                        })()
+                      )}
+                    </div>
+
+                    {/* Quick indicator when user has typed a custom category name */}
+                    {category.trim() && !availableCategories.some(c => c.trim().toLowerCase() === category.trim().toLowerCase()) && (
+                      <div className="p-2 border-t border-white/10 bg-slate-950/60 flex items-center justify-between text-[11px]">
+                        <span className="text-amber-300 truncate">
+                          Categoria personalizada: <strong>"{category.trim()}"</strong>
+                        </span>
+                        <span className="text-[10px] text-slate-500 shrink-0 ml-2">Salva no card</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
