@@ -172,7 +172,8 @@ O DeskFlow também foi utilizado em um cenário real de operação de suporte du
 
 Nesse período, o usuário passou a utilizar a plataforma como principal ferramenta para armazenar e recuperar fraseologias, scripts e informações operacionais, abandonando o uso de Notepad e blocos de notas para esse tipo de atividade.
 
-Essa experiência prática influenciou diretamente o desenvolvimento das funcionalidades de busca contextual, tags, itens fixados e organização do catálogo.
+Essa experiência prática influenciou diretamente o desenvolvimento das funcionalidades de busca contextual, tags, itens fixados e organização do catálogo. 
+
 ---
 
 ## 7. Considerações finais
