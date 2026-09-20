@@ -5,11 +5,8 @@
 # DeskFlow
 **Operational productivity for IT Support**
 
-<<<<<<< HEAD
 [🚀 Demo](https://deskflow-blush.vercel.app) · [📘 User Manual](docs/DeskFlow_Manual_Completo.pdf) · [📚 Technical Docs](docs/technical.md) · [📦 Repository](https://github.com/riionansr/deskflow)
 =======
-[🚀 Demo](https://deskflow-blush.vercel.app) · [📘 User Manual](docs/DeskFlow_Manual_Completo.pdf) · [📦 Repository](https://github.com/riionansr/deskflow)
->>>>>>> 70554e04a9d311f5272195e234585181cfa1244b
 
 </div>
 
@@ -17,7 +14,7 @@
 
 ## The problem
 
-<<<<<<< HEAD
+
 N1/N2/N3 analysts can lose valuable time rewriting the same replies, searching through scattered notes, or switching between tools to find the right procedure while an active case is already running against the SLA clock.
 
 The problem isn't necessarily the lack of documentation — it's the **friction of finding and reusing the right information at the right moment**.
@@ -138,14 +135,12 @@ DeskFlow follows a **local-first (BYOD — Bring Your Own Data)** model: by defa
 ## Stack
 
 - **Frontend:** TypeScript, 100% client-side
->>>>>>> 70554e04a9d311f5272195e234585181cfa1244b
 - **Storage:** `localStorage` (local-first)
 - **Optional sync:** Firestore
 - **Deploy:** Vercel
 
 ## Documentation
 
-<<<<<<< HEAD
 This README covers the product/engineering overview. Two dedicated docs go deeper:
 
 📘 **[User Manual](docs/DeskFlow_Manual_Completo.pdf)** — operational workflow, import/export, contextual search and sidebar setup (Opera, Firefox, Edge, Chrome).
@@ -162,12 +157,10 @@ This README covers the product/engineering overview. For the full operational wa
 ```
 docs/
 └── DeskFlow_Manual_Completo.pdf   # Operational manual + productivity guide (sidebar setup)
->>>>>>> 70554e04a9d311f5272195e234585181cfa1244b
 ```
 
 ## Getting started
 
-<<<<<<< HEAD
 Ideas under consideration for upcoming versions — check the repo's issues for the current status:
 
 - [ ] Team spaces with segmented catalogs
@@ -189,10 +182,5 @@ npm install
 Then run the dev script defined in `package.json` to start the local server.
 =======
 DeskFlow is 100% web-based — just open the [live app](https://deskflow-blush.vercel.app) and start using it. To pin it to your browser's sidebar (recommended), check the step-by-step guide in the manual above.
->>>>>>> 70554e04a9d311f5272195e234585181cfa1244b
 
 ---
-
-<div align="center">
-DeskFlow Community • Built for people who live in Service Desk
-</div>
