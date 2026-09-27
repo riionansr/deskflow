@@ -18,36 +18,96 @@ const effectiveFirebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
-const app = getApps().length === 0 ? initializeApp(effectiveFirebaseConfig) : getApp();
-export const auth = getAuth(app);
+let authInstance: any = null;
+
+export function getFirebaseAuth(): any {
+  if (authInstance) return authInstance;
+  if (!effectiveFirebaseConfig.apiKey) {
+    return null;
+  }
+  try {
+    const app = getApps().length === 0 ? initializeApp(effectiveFirebaseConfig) : getApp();
+    authInstance = getAuth(app);
+    return authInstance;
+  } catch (err) {
+    console.warn('Firebase init error:', err);
+    return null;
+  }
+}
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 
-let cachedAccessToken: string | null = null;
+const TOKEN_KEY = 'deskflow_gdrive_token';
+const TOKEN_TIME_KEY = 'deskflow_gdrive_token_time';
+
+export function getSavedGoogleToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  const timeStr = localStorage.getItem(TOKEN_TIME_KEY) || sessionStorage.getItem(TOKEN_TIME_KEY);
+  if (!token) return null;
+  if (timeStr) {
+    const elapsed = Date.now() - parseInt(timeStr, 10);
+    // Token expires after ~55 minutes
+    if (elapsed > 55 * 60 * 1000) {
+      clearGoogleToken();
+      return null;
+    }
+  }
+  return token;
+}
+
+export function saveGoogleToken(token: string) {
+  if (typeof window === 'undefined') return;
+  const now = Date.now().toString();
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(TOKEN_TIME_KEY, now);
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(TOKEN_TIME_KEY, now);
+}
+
+export function clearGoogleToken() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_TIME_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_TIME_KEY);
+}
+
+let cachedAccessToken: string | null = getSavedGoogleToken();
 
 export function getCachedToken(): string | null {
-  return cachedAccessToken;
+  return cachedAccessToken || getSavedGoogleToken();
 }
 
 export function initGoogleDriveAuth(
   onUserChanged: (user: User | null, token: string | null) => void
 ) {
+  const auth = getFirebaseAuth();
+  if (!auth) {
+    onUserChanged(null, null);
+    return () => {};
+  }
+
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
-      if (cachedAccessToken) {
-        onUserChanged(user, cachedAccessToken);
-      } else {
-        onUserChanged(user, null);
-      }
+      const token = getSavedGoogleToken();
+      cachedAccessToken = token;
+      onUserChanged(user, token);
     } else {
       cachedAccessToken = null;
+      clearGoogleToken();
       onUserChanged(null, null);
     }
   });
 }
 
 export async function loginWithGoogle(): Promise<{ user: User; accessToken: string }> {
+  const auth = getFirebaseAuth();
+  if (!auth) {
+    throw new Error('Configurações do Firebase ausentes no ambiente. Configure as variáveis VITE_FIREBASE_* na Vercel.');
+  }
+
   try {
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -58,6 +118,7 @@ export async function loginWithGoogle(): Promise<{ user: User; accessToken: stri
     }
 
     cachedAccessToken = token;
+    saveGoogleToken(token);
     return { user: result.user, accessToken: token };
   } catch (error: any) {
     console.error('Erro de login com o Google:', error);
@@ -66,11 +127,32 @@ export async function loginWithGoogle(): Promise<{ user: User; accessToken: stri
 }
 
 export async function logoutGoogle(): Promise<void> {
-  await signOut(auth);
+  const auth = getFirebaseAuth();
+  if (auth) {
+    await signOut(auth);
+  }
   cachedAccessToken = null;
+  clearGoogleToken();
 }
 
 const FILE_NAME = 'deskflow-phrases.json';
+
+async function parseGoogleError(response: Response, defaultMessage: string): Promise<string> {
+  try {
+    const errorJson = await response.json();
+    if (errorJson?.error?.message) {
+      const msg = errorJson.error.message;
+      if (msg.includes('has not been used in project') || msg.includes('disabled') || msg.includes('Google Drive API')) {
+        const projectQuery = effectiveFirebaseConfig.projectId ? `?project=${effectiveFirebaseConfig.projectId}` : '';
+        return `A API do Google Drive está desativada no seu projeto Google Cloud. Acesse https://console.cloud.google.com/apis/library/drive.googleapis.com${projectQuery} e clique em 'Ativar'.`;
+      }
+      return `${msg} (HTTP ${response.status})`;
+    }
+  } catch (_) {
+    // ignore json parsing errors
+  }
+  return `${defaultMessage} (HTTP ${response.status}${response.statusText ? `: ${response.statusText}` : ''})`;
+}
 
 /**
  * Searches for deskflow-phrases.json in Google Drive root
@@ -84,7 +166,8 @@ async function findDriveFile(accessToken: string): Promise<{ id: string } | null
   });
 
   if (!response.ok) {
-    throw new Error(`Erro ao buscar arquivo no Google Drive: ${response.statusText}`);
+    const errorMessage = await parseGoogleError(response, 'Erro ao consultar o Google Drive');
+    throw new Error(errorMessage);
   }
 
   const data = await response.json();
@@ -116,7 +199,8 @@ export async function savePhrasesToGoogleDrive(
     });
 
     if (!res.ok) {
-      throw new Error(`Falha ao atualizar arquivo no Google Drive (${res.status})`);
+      const errorMsg = await parseGoogleError(res, 'Falha ao atualizar arquivo no Google Drive');
+      throw new Error(errorMsg);
     }
 
     return {
@@ -154,7 +238,8 @@ export async function savePhrasesToGoogleDrive(
     });
 
     if (!res.ok) {
-      throw new Error(`Falha ao criar novo arquivo no Google Drive (${res.status})`);
+      const errorMsg = await parseGoogleError(res, 'Falha ao criar novo arquivo no Google Drive');
+      throw new Error(errorMsg);
     }
 
     const created = await res.json();
@@ -185,7 +270,8 @@ export async function loadPhrasesFromGoogleDrive(
   });
 
   if (!res.ok) {
-    throw new Error(`Erro ao baixar arquivo do Google Drive (${res.status})`);
+    const errorMsg = await parseGoogleError(res, 'Erro ao baixar arquivo do Google Drive');
+    throw new Error(errorMsg);
   }
 
   const data = await res.json();
@@ -196,5 +282,37 @@ export async function loadPhrasesFromGoogleDrive(
   return {
     phrases: data,
     message: `${data.length} fraseologia(s) recuperadas do seu Google Drive!`
+  };
+}
+
+/**
+ * Automatically syncs with Google Drive upon login:
+ * If deskflow-phrases.json exists on Drive, downloads it.
+ * If it doesn't exist, uploads the current local phrases.
+ */
+export async function autoSyncWithGoogleDrive(
+  accessToken: string,
+  localPhrases: Phrase[]
+): Promise<{ phrases: Phrase[]; action: 'loaded' | 'uploaded' | 'none'; message: string }> {
+  const existingFile = await findDriveFile(accessToken);
+  if (existingFile) {
+    const driveData = await loadPhrasesFromGoogleDrive(accessToken);
+    return {
+      phrases: driveData.phrases,
+      action: 'loaded',
+      message: `${driveData.phrases.length} fraseologia(s) carregadas da sua nuvem Google Drive!`
+    };
+  } else if (localPhrases.length > 0) {
+    const uploadRes = await savePhrasesToGoogleDrive(accessToken, localPhrases);
+    return {
+      phrases: localPhrases,
+      action: 'uploaded',
+      message: uploadRes.message
+    };
+  }
+  return {
+    phrases: localPhrases,
+    action: 'none',
+    message: 'Nenhum dado para sincronizar.'
   };
 }

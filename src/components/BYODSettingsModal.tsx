@@ -46,7 +46,9 @@ import {
   loginWithGoogle, 
   logoutGoogle, 
   savePhrasesToGoogleDrive, 
-  loadPhrasesFromGoogleDrive 
+  loadPhrasesFromGoogleDrive,
+  getSavedGoogleToken,
+  autoSyncWithGoogleDrive
 } from '../lib/googleDriveSync';
 import { User } from 'firebase/auth';
 
@@ -122,9 +124,14 @@ export default function BYODSettingsModal({
       setConfirmResetSig(false);
       setConfirmResetAll(false);
 
+      const savedToken = getSavedGoogleToken();
+      if (savedToken) {
+        setGoogleAccessToken(savedToken);
+      }
+
       const unsubscribe = initGoogleDriveAuth((user, token) => {
         setGoogleUser(user);
-        setGoogleAccessToken(token);
+        setGoogleAccessToken(token || getSavedGoogleToken());
       });
       return () => unsubscribe();
     }
@@ -140,7 +147,21 @@ export default function BYODSettingsModal({
       const res = await loginWithGoogle();
       setGoogleUser(res.user);
       setGoogleAccessToken(res.accessToken);
-      setGdriveMsg({ type: 'success', text: `Conectado como ${res.user.displayName || res.user.email}!` });
+      
+      // Auto-sync immediately after login: load cloud data or upload local phrases
+      try {
+        const syncRes = await autoSyncWithGoogleDrive(res.accessToken, phrases);
+        if (syncRes.action === 'loaded') {
+          onPhrasesUpdated(syncRes.phrases, syncRes.message);
+          setGdriveMsg({ type: 'success', text: `Conectado como ${res.user.displayName || res.user.email}! ${syncRes.message}` });
+        } else if (syncRes.action === 'uploaded') {
+          setGdriveMsg({ type: 'success', text: `Conectado como ${res.user.displayName || res.user.email}! Backup inicial salvo no Google Drive.` });
+        } else {
+          setGdriveMsg({ type: 'success', text: `Conectado como ${res.user.displayName || res.user.email}!` });
+        }
+      } catch (syncErr: any) {
+        setGdriveMsg({ type: 'success', text: `Conectado como ${res.user.displayName || res.user.email}!` });
+      }
     } catch (err: any) {
       setGdriveMsg({ type: 'error', text: err.message || 'Falha ao fazer login com o Google.' });
     } finally {
@@ -156,14 +177,25 @@ export default function BYODSettingsModal({
   };
 
   const handleSaveToDrive = async () => {
-    if (!googleAccessToken) {
-      setGdriveMsg({ type: 'error', text: 'Por favor, faça login com o Google primeiro.' });
-      return;
+    let token = googleAccessToken || getSavedGoogleToken();
+    if (!token) {
+      try {
+        setGdriveLoading(true);
+        const res = await loginWithGoogle();
+        token = res.accessToken;
+        setGoogleUser(res.user);
+        setGoogleAccessToken(res.accessToken);
+      } catch (err: any) {
+        setGdriveMsg({ type: 'error', text: 'Sessão do Google expirada. Faça login novamente para salvar no Drive.' });
+        setGdriveLoading(false);
+        return;
+      }
     }
+
     setGdriveMsg(null);
     setGdriveLoading(true);
     try {
-      const result = await savePhrasesToGoogleDrive(googleAccessToken, phrases);
+      const result = await savePhrasesToGoogleDrive(token, phrases);
       setGdriveMsg({ type: 'success', text: result.message });
     } catch (err: any) {
       setGdriveMsg({ type: 'error', text: err.message || 'Erro ao salvar no Google Drive.' });
@@ -173,14 +205,25 @@ export default function BYODSettingsModal({
   };
 
   const handleLoadFromDrive = async () => {
-    if (!googleAccessToken) {
-      setGdriveMsg({ type: 'error', text: 'Por favor, faça login com o Google primeiro.' });
-      return;
+    let token = googleAccessToken || getSavedGoogleToken();
+    if (!token) {
+      try {
+        setGdriveLoading(true);
+        const res = await loginWithGoogle();
+        token = res.accessToken;
+        setGoogleUser(res.user);
+        setGoogleAccessToken(res.accessToken);
+      } catch (err: any) {
+        setGdriveMsg({ type: 'error', text: 'Sessão do Google expirada. Faça login novamente para carregar do Drive.' });
+        setGdriveLoading(false);
+        return;
+      }
     }
+
     setGdriveMsg(null);
     setGdriveLoading(true);
     try {
-      const result = await loadPhrasesFromGoogleDrive(googleAccessToken);
+      const result = await loadPhrasesFromGoogleDrive(token);
       onPhrasesUpdated(result.phrases, result.message);
       setGdriveMsg({ type: 'success', text: result.message });
     } catch (err: any) {

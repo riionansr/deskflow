@@ -389,6 +389,155 @@ Central de Atendimento e Suporte de TI`}
                 </ol>
               </div>
 
+              {/* Box: Prompt de IA para conversão de textos */}
+              <div className="p-4 rounded-xl bg-gradient-to-br from-violet-950/30 via-slate-950/70 to-sky-950/30 border border-violet-500/30 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-violet-400" />
+                    <h5 className="font-bold text-violet-200 text-xs uppercase tracking-wider">
+                      Prompt para IA (Converter qualquer texto em .txt DeskFlow)
+                    </h5>
+                  </div>
+                  <button
+                    onClick={() => handleCopySample(
+`Você é um assistente de documentação técnica de TI. Preciso converter minhas anotações e roteiros de suporte no modelo padrão do DeskFlow (.txt).
+
+### REGRAS DO FORMATO DESKFLOW:
+1. Separe cada fraseologia com exatamente três hífens em linha isolada: ---
+2. Cada fraseologia DEVE conter:
+   Título: [Título claro da fraseologia]
+   Categoria: [Impressoras, Redes, Hardware, Software, Acessos ou outra]
+   Subtítulo: [Resumo curto da frase] (opcional)
+   [Texto / Procedimento completo]
+   #tag1 #tag2 #tag3 (tags com # na última linha)
+
+### EXEMPLO DE SAÍDA:
+Título: Reinício de Spooler de Impressão
+Categoria: Impressoras
+Subtítulo: Limpeza da fila e reinício do serviço local
+
+1. Pressione Windows + R e digite: services.msc
+2. Localize o serviço "Spooler de Impressão" e clique em Parar.
+3. Acesse a pasta: C:\\Windows\\System32\\spool\\PRINTERS e delete todos os arquivos.
+4. Volte aos serviços e clique em Iniciar o Spooler de Impressão.
+5. Realize uma impressão de teste.
+
+#impressora #spooler #fila #driver #teste
+
+---
+
+Título: Verificação de Porta no Switch
+Categoria: Redes
+Subtítulo: Diagnóstico de conectividade física e link down
+
+1. Verifique o led indicador da porta correspondente no patch panel e no switch.
+2. Certifique-se de que o cabo de rede RJ45 está travado corretamente no conector.
+3. Teste a integridade do cabo com testador de continuidade se necessário.
+4. Se o led permanecer apagado, mude para uma porta sobressalente da mesma VLAN.
+
+#switch #rede #porta #link #vlan #cabo
+
+---
+
+Título: Substituição de Memória RAM em Desktop
+Categoria: Hardware
+Subtítulo: Procedimento de diagnóstico de inicialização e bipes
+
+1. Desconecte o cabo de força e descarregue a estática do equipamento.
+2. Remova os módulos de memória e realize a limpeza dos contatos com borracha macia.
+3. Teste um módulo por vez em cada slot para isolar eventuais falhas de barramento.
+4. Ligue o desktop e verifique se o POST é concluído sem bipes de alerta.
+
+#hardware #memoria #ram #desktop #post #manutencao
+
+---
+
+### TAREFA:
+Transforme todos os meus textos brutos abaixo exatamente no formato acima, identificando os títulos, definindo as melhores categorias e gerando as #tags úteis para busca:
+
+[COLE SEUS TEXTOS AQUI]`,
+                      'prompt_ai'
+                    )}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/40 text-violet-300 rounded-lg text-xs font-semibold transition cursor-pointer"
+                  >
+                    {copiedSample === 'prompt_ai' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-300">Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copiar Prompt</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-slate-300 text-xs leading-relaxed">
+                  Copie o prompt abaixo, cole no seu modelo de IA favorito (ChatGPT, Claude, Gemini) junto com suas anotações desorganizadas. A IA devolverá o arquivo formatado pronto para importar no DeskFlow:
+                </p>
+
+                <pre className="p-3 bg-slate-900/90 border border-white/10 rounded-lg text-[11px] font-mono text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-60">
+{`Você é um assistente de documentação técnica de TI. Preciso converter minhas anotações e roteiros de suporte no modelo padrão do DeskFlow (.txt).
+
+### REGRAS DO FORMATO DESKFLOW:
+1. Separe cada fraseologia com exatamente três hífens em linha isolada: ---
+2. Cada fraseologia DEVE conter:
+   Título: [Título claro da fraseologia]
+   Categoria: [Impressoras, Redes, Hardware, Software, Acessos ou outra]
+   Subtítulo: [Resumo curto da frase] (opcional)
+   [Texto / Procedimento completo]
+   #tag1 #tag2 #tag3 (tags com # na última linha)
+
+### EXEMPLO DE SAÍDA:
+Título: Reinício de Spooler de Impressão
+Categoria: Impressoras
+Subtítulo: Limpeza da fila e reinício do serviço local
+
+1. Pressione Windows + R e digite: services.msc
+2. Localize o serviço "Spooler de Impressão" e clique em Parar.
+3. Acesse a pasta: C:\\Windows\\System32\\spool\\PRINTERS e delete todos os arquivos.
+4. Volte aos serviços e clique em Iniciar o Spooler de Impressão.
+5. Realize uma impressão de teste.
+
+#impressora #spooler #fila #driver #teste
+
+---
+
+Título: Verificação de Porta no Switch
+Categoria: Redes
+Subtítulo: Diagnóstico de conectividade física e link down
+
+1. Verifique o led indicador da porta correspondente no patch panel e no switch.
+2. Certifique-se de que o cabo de rede RJ45 está travado corretamente no conector.
+3. Teste a integridade do cabo com testador de continuidade se necessário.
+4. Se o led permanecer apagado, mude para uma porta sobressalente da mesma VLAN.
+
+#switch #rede #porta #link #vlan #cabo
+
+---
+
+Título: Substituição de Memória RAM em Desktop
+Categoria: Hardware
+Subtítulo: Procedimento de diagnóstico de inicialização e bipes
+
+1. Desconecte o cabo de força e descarregue a estática do equipamento.
+2. Remova os módulos de memória e realize a limpeza dos contatos com borracha macia.
+3. Teste um módulo por vez em cada slot para isolar eventuais falhas de barramento.
+4. Ligue o desktop e verifique se o POST é concluído sem bipes de alerta.
+
+#hardware #memoria #ram #desktop #post #manutencao
+
+---
+
+### TAREFA:
+Transforme todos os meus textos brutos abaixo exatamente no formato acima, identificando os títulos, definindo as melhores categorias e gerando as #tags úteis para busca:
+
+[COLE SEUS TEXTOS AQUI]`}
+                </pre>
+              </div>
+
               <div className="p-4 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
                 <h5 className="font-bold text-teal-300 text-xs uppercase tracking-wider flex items-center gap-1.5">
                   <Download className="w-3.5 h-3.5" />

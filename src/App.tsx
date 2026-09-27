@@ -28,6 +28,12 @@ import {
 } from './lib/storage';
 import { pushPhrasesToGitHub } from './lib/githubSync';
 import { savePhrases } from './lib/api';
+import { 
+  getSavedGoogleToken, 
+  loadPhrasesFromGoogleDrive, 
+  savePhrasesToGoogleDrive,
+  initGoogleDriveAuth 
+} from './lib/googleDriveSync';
 
 export default function App() {
   // Global State
@@ -73,11 +79,27 @@ export default function App() {
     }, 350);
   };
 
-  // Load initial data from LocalStorage
+  // Load initial data from LocalStorage and sync with Google Drive if connected
   useEffect(() => {
     const loaded = loadLocalPhrases();
     setPhrases(loaded);
     setCategories(loadCategories());
+
+    const unsub = initGoogleDriveAuth(async (user, token) => {
+      if (user && token) {
+        try {
+          const driveData = await loadPhrasesFromGoogleDrive(token);
+          if (driveData.phrases && driveData.phrases.length > 0) {
+            setPhrases(driveData.phrases);
+            saveLocalPhrases(driveData.phrases);
+          }
+        } catch (err) {
+          console.warn('Sincronização inicial do Google Drive:', err);
+        }
+      }
+    });
+
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -100,6 +122,13 @@ export default function App() {
 
     if (notifyMsg) {
       notify(notifyMsg);
+    }
+
+    // Auto-sync to Google Drive if connected
+    const gdriveToken = getSavedGoogleToken();
+    if (gdriveToken) {
+      savePhrasesToGoogleDrive(gdriveToken, newList)
+        .catch(err => console.warn('Auto-sync Google Drive error:', err));
     }
 
     // Auto-sync to GitHub if configured
