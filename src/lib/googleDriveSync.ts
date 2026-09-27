@@ -10,16 +10,25 @@ import {
 import { Phrase } from '../types';
 
 const effectiveFirebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
 const app = getApps().length === 0 ? initializeApp(effectiveFirebaseConfig) : getApp();
 export const auth = getAuth(app);
+
+const provider = new GoogleAuthProvider();
+provider.addScope('https://www.googleapis.com/auth/drive.file');
+
+let cachedAccessToken: string | null = null;
+
+export function getCachedToken(): string | null {
+  return cachedAccessToken;
+}
 
 export function initGoogleDriveAuth(
   onUserChanged: (user: User | null, token: string | null) => void
@@ -96,7 +105,6 @@ export async function savePhrasesToGoogleDrive(
   const existingFile = await findDriveFile(accessToken);
 
   if (existingFile) {
-    // Update existing file
     const updateUrl = `https://www.googleapis.com/upload/drive/v3/files/${existingFile.id}?uploadType=media`;
     const res = await fetch(updateUrl, {
       method: 'PATCH',
@@ -117,7 +125,6 @@ export async function savePhrasesToGoogleDrive(
       message: 'Fraseologias salvas e atualizadas com sucesso no seu Google Drive!'
     };
   } else {
-    // Create new file via multipart upload
     const metadata = {
       name: FILE_NAME,
       mimeType: 'application/json'
