@@ -212,7 +212,7 @@ export default function PhraseEditorModal({
                 <h2 className="text-xl font-display font-bold text-slate-150">
                   {phrase ? 'Editar Fraseologia' : 'Cadastrar Fraseologia'}
                 </h2>
-                <p className="text-xs text-slate-400">Guarde respostas rápidas padronizadas para o ServiceNow</p>
+                <p className="text-xs text-slate-400">Guarde respostas rápidas padronizadas para seu Service Desk ou sistema de chamados</p>
               </div>
             </div>
           </div>

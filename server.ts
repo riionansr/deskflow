@@ -287,6 +287,7 @@ async function startServer() {
         "node_modules/**",
         "dist/**",
         ".git/**",
+        ".env*",
         "db.json",
         "portal-de-fraseologia.zip",
         "**/.DS_Store",

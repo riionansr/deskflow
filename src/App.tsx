@@ -27,7 +27,6 @@ import {
   saveCategories
 } from './lib/storage';
 import { pushPhrasesToGitHub } from './lib/githubSync';
-import { savePhrases } from './lib/api';
 import { 
   getSavedGoogleToken, 
   loadPhrasesFromGoogleDrive, 
@@ -117,8 +116,6 @@ export default function App() {
   const persistAndSync = (newList: Phrase[], notifyMsg?: string) => {
     setPhrases(newList);
     saveLocalPhrases(newList);
-    // Optional backend sync fallback
-    savePhrases(newList).catch(() => {});
 
     if (notifyMsg) {
       notify(notifyMsg);

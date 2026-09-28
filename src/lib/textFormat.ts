@@ -3,7 +3,7 @@ import { Phrase } from '../types';
 export const STANDARD_FORMAT_EXAMPLE = `titulo: Suporte de Acesso e Reset VPN
 corpo:
 Olá! Para redefinir seu acesso à VPN, siga o procedimento:
-1. Abra o FortiClient / GlobalProtect
+1. Abra o cliente de VPN corporativo (ex: OpenVPN, FortiClient ou WireGuard)
 2. Insira suas credenciais de rede
 3. Caso a senha esteja expirada, redefina pelo Portal de Autoatendimento.
 assinatura:
@@ -55,7 +55,7 @@ export function parseStandardText(rawText: string): Partial<Phrase>[] {
     .filter(b => b.length > 0);
 
   for (const rawBlock of rawBlocks) {
-    // Skip banner headers like "CENTRAL DE SERVIÇOS SABESP..." that don't have title or tags
+    // Skip banner headers like "SERVICE DESK / CENTRAL DE SERVIÇOS..." that don't have title or tags
     if (!rawBlock.match(/(?:t[íi]tulo|title)\s*:/i) && !rawBlock.includes("#")) {
       continue;
     }
