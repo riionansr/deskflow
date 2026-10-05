@@ -19,6 +19,7 @@ import AIImportModal from './components/AIImportModal';
 import AIExportModal from './components/AIExportModal';
 import BYODSettingsModal from './components/BYODSettingsModal';
 import { OperationalManualModal } from './components/OperationalManualModal';
+import { Analytics } from '@vercel/analytics/react';
 import { 
   loadLocalPhrases, 
   saveLocalPhrases, 
@@ -842,6 +843,9 @@ export default function App() {
           Subir
         </span>
       </button>
+
+      {/* Vercel Web Analytics tracker */}
+      <Analytics />
 
     </div>
   );
