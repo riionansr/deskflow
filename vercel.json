@@ -34,7 +34,7 @@
   ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!_vercel|assets|.*\\..*).*)",
       "destination": "/"
     }
   ]

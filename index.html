@@ -18,6 +18,21 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Gracefully handle Vite HMR WebSocket errors in sandbox/preview
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.includes('WebSocket') || e.message.includes('@vite/client'))) {
+          e.stopImmediatePropagation();
+        }
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e.reason ? String(e.reason) : '';
+        if (reason.includes('WebSocket') || reason.includes('@vite/client')) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
